@@ -3,67 +3,73 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>آسان‌یاب | پنل فروشنده</title>
-<meta name="theme-color" content="#111111">
+<title>AlanOffer | پنل فروشنده</title>
+<meta name="theme-color" content="#ff6a00">
 <style>
-*{box-sizing:border-box}body{margin:0;background:#f6f7f9;color:#151515;font-family:Tahoma,Arial,sans-serif}.wrap{max-width:760px;margin:auto;padding:18px}.top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:6px 0 14px}.back{display:inline-block;text-decoration:none;color:#222;background:#fff;border:1px solid #e5e7eb;padding:10px 13px;border-radius:12px;font-size:13px}.hero{background:linear-gradient(135deg,#111,#2b2b2b);color:#fff;border-radius:22px;padding:26px 22px;margin-bottom:16px}.hero h1{margin:0 0 8px;font-size:29px}.hero p{margin:0;color:#e6e6e6;line-height:1.9}.panel,.result{background:#fff;border:1px solid #e9ebef;border-radius:18px;padding:18px;box-shadow:0 7px 22px #0000000a;margin-bottom:14px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{margin-bottom:11px}.field label{display:block;font-size:12px;color:#666;margin:0 3px 6px}input,select,button{width:100%;min-height:48px;border-radius:12px;font-size:15px}input,select{border:1px solid #dfe2e7;background:#fff;padding:0 12px}button{border:0;background:#111;color:#fff;font-weight:700;cursor:pointer;padding:0 14px}.secondary{background:#f1f2f4;color:#222}.advisor{background:#f4f7ff;border:1px solid #dce6ff;border-radius:14px;padding:15px;line-height:2}.offer{background:#fff6d9;border:1px solid #f6df96;border-radius:14px;padding:14px;margin:12px 0;font-size:18px;font-weight:800}.tiny{font-size:12px;color:#777;line-height:1.9}.success{display:none;background:#ecfdf3;border:1px solid #b8efd0;color:#17633a;border-radius:14px;padding:14px;margin-top:12px}.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}@media(max-width:620px){.grid{grid-template-columns:1fr}.actions{grid-template-columns:1fr}}
+*{box-sizing:border-box}body{margin:0;background:#f7f7f7;color:#151515;font-family:Tahoma,Arial,sans-serif}.wrap{max-width:820px;margin:auto;padding:16px}.top{display:flex;justify-content:space-between;align-items:center;margin:3px 0 12px}.brand{font-weight:900}.brand b{color:#ff6a00}.back{background:#111;color:#fff;text-decoration:none;border-radius:11px;padding:9px 12px;font-size:12px}.hero{background:#111;color:#fff;border-radius:23px;padding:25px 21px;margin-bottom:13px}.hero h1{font-size:28px;margin:0 0 8px}.hero p{margin:0;color:#ddd;line-height:1.9;font-size:13px}.panel,.preview,.learn{background:#fff;border:1px solid #e8e8e8;border-radius:18px;padding:16px;margin-bottom:12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{margin-bottom:10px}.field label{display:block;font-size:12px;color:#666;margin:0 3px 6px}input,select,button{width:100%;min-height:48px;border-radius:12px;font-size:14px}input,select{border:1px solid #ddd;background:#fff;padding:0 11px}button{border:0;background:#ff6a00;color:#fff;font-weight:900;cursor:pointer}.secondary{background:#111}.tiny{font-size:11px;color:#777;line-height:1.9}.why{background:#fff4ec;border:1px solid #ffd6b8;padding:11px;border-radius:12px;font-size:12px;line-height:1.9}.offerCard{border:2px solid #111;border-radius:16px;padding:15px;margin-top:10px}.offerCard h3{margin:0 0 7px;font-size:20px}.price{font-size:22px;font-weight:900;color:#ff6a00}.old{text-decoration:line-through;color:#999;font-size:13px;margin-right:7px}.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.pill{background:#f2f2f2;border-radius:999px;padding:6px 9px;font-size:11px}.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.success{display:none;background:#ecfdf3;border:1px solid #b7e8ca;color:#17613b;padding:12px;border-radius:12px;margin-top:10px}.learn details{border-bottom:1px solid #eee;padding:9px 0}.learn details:last-child{border:0}.learn summary{font-weight:800;cursor:pointer}.learn p{font-size:12px;color:#666;line-height:1.9}.story{background:#111;color:#fff;border-radius:14px;padding:14px;line-height:2;font-size:13px;margin-top:10px}.warn{background:#fff8db;border:1px solid #f3df8b;padding:10px;border-radius:11px;font-size:11px;line-height:1.8}@media(max-width:640px){.grid,.actions{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <div class="wrap">
-<div class="top"><strong>پنل فروشنده</strong><a class="back" href="index.html">← دیدن سایت مشتری</a></div>
-<section class="hero"><h1>امروز چی می‌خوای بفروشی؟</h1><p>اطلاعات ساده را وارد کن. مشاور آزمایشی آسان‌یاب یک آفر پیشنهاد می‌دهد که هم برای مشتری جذاب باشد و هم تخفیف بی‌حساب نباشد.</p></section>
-<section class="panel">
-<div class="grid">
-<div class="field"><label>نام کسب‌وکار</label><input id="name" placeholder="مثلاً فست‌فود نمونه کارون"></div>
-<div class="field"><label>منطقه</label><select id="area"><option>کیانپارس</option><option>کیانشهر</option><option>گلستان</option><option>زیتون کارمندی</option><option>پادادشهر</option><option>امانیه</option><option>لشکرآباد</option><option>کوی ملت</option><option>نادری</option><option>کمپلو</option><option>حصیرآباد</option><option>باهنر</option><option>شهرک نفت</option><option>کوی رمضان</option><option>سپیدار</option></select></div>
-<div class="field"><label>نوع کسب‌وکار</label><select id="kind"><option>فست‌فود</option><option>رستوران ایرانی</option></select></div>
-<div class="field"><label>چی می‌خواهی امروز بیشتر بفروشی؟</label><input id="product" placeholder="مثلاً برگر مخصوص"></div>
-<div class="field"><label>قیمت عادی (هزار تومان)</label><input id="price" inputmode="numeric" placeholder="مثلاً 350"></div>
-<div class="field"><label>حداکثر تخفیفی که واقعاً می‌توانی بدهی</label><select id="discount"><option value="0">تخفیف نمی‌خواهم</option><option value="10">حداکثر ۱۰٪</option><option value="15">حداکثر ۱۵٪</option><option value="20">حداکثر ۲۰٪</option><option value="25">حداکثر ۲۵٪</option></select></div>
-<div class="field"><label>هدفت امروز چیست؟</label><select id="goal"><option value="capacity">پر کردن ساعت‌های خلوت</option><option value="volume">فروش بیشتر یک محصول</option><option value="new">آوردن مشتری جدید</option></select></div>
-<div class="field"><label>چند آفر می‌توانی قبول کنی؟</label><input id="qty" inputmode="numeric" placeholder="مثلاً 10"></div>
-</div>
-<button onclick="advise()">پیشنهاد آفر بده</button>
-<div class="tiny" style="margin-top:10px">این نسخه فعلاً شبیه‌ساز مشاور است؛ هنوز به مدل هوش مصنوعی واقعی وصل نشده.</div>
-</section>
-<section id="result" class="result" style="display:none">
-<div style="font-weight:800;margin-bottom:8px">پیشنهاد مشاور آسان‌یاب</div>
-<div id="reason" class="advisor"></div>
-<div id="offer" class="offer"></div>
-<div class="actions"><button onclick="approve()">تأیید و انتشار آزمایشی</button><button class="secondary" onclick="advise(true)">یک پیشنهاد دیگر</button></div>
-<div id="success" class="success">آفر ذخیره شد. حالا در همین گوشی می‌توانی از صفحه مشتری آن را ببینی.</div>
-</section>
+  <div class="top"><div class="brand">Alan<b>Offer</b> | پنل فروشنده</div><a class="back" href="index.html">دیدن سایت مشتری</a></div>
+  <section class="hero"><h1>یک آفر واقعی بساز</h1><p>فقط چیزی را آفر کن که واقعاً محدودیت زمانی، ظرفیت خالی یا موجودی مشخص دارد.</p></section>
+
+  <section class="panel">
+    <div class="grid">
+      <div class="field"><label>نام کسب‌وکار</label><input id="name" placeholder="مثلاً کافه من"></div>
+      <div class="field"><label>محله</label><select id="area"><option>کیانپارس</option><option>گلستان</option><option>زیتون کارمندی</option><option>پادادشهر</option><option>کیانشهر</option><option>امانیه</option><option>لشکرآباد</option></select></div>
+      <div class="field"><label>دسته</label><select id="cat"><option>رستوران و فست‌فود</option><option>کافه</option><option>خدمات و نوبت</option></select></div>
+      <div class="field"><label>چی آفر شده؟</label><input id="product" placeholder="مثلاً برگر مخصوص"></div>
+      <div class="field"><label>قیمت عادی (هزار تومان)</label><input id="price" inputmode="numeric" placeholder="320"></div>
+      <div class="field"><label>قیمت آفر (هزار تومان)</label><input id="offerPrice" inputmode="numeric" placeholder="240"></div>
+      <div class="field"><label>چند عدد / چند ظرفیت؟</label><input id="qty" inputmode="numeric" placeholder="10"></div>
+      <div class="field"><label>تا چند ساعت دیگر معتبر است؟</label><select id="hours"><option value="1">۱ ساعت</option><option value="2">۲ ساعت</option><option value="3" selected>۳ ساعت</option><option value="6">۶ ساعت</option><option value="12">۱۲ ساعت</option><option value="24">۲۴ ساعت</option></select></div>
+      <div class="field"><label>چرا الان آفر شده؟</label><select id="reason"><option>موجودی محدود امروز</option><option>ساعت خلوت</option><option>نوبت کنسل‌شده</option><option>ظرفیت خالی</option><option>موجودی آخر شب</option><option>افتتاحیه / معرفی اولیه</option></select></div>
+      <div class="field"><label>توضیح کوتاه اختیاری</label><input id="note" placeholder="مثلاً فقط برای سفارش حضوری"></div>
+    </div>
+    <div class="warn">فوریت ساختگی نساز. اگر فردا هم دقیقاً همین آفر تکرار شود، اعتماد کاربر از بین می‌رود.</div>
+    <button style="margin-top:11px" onclick="makePreview()">پیش‌نمایش آفر</button>
+  </section>
+
+  <section id="preview" class="preview" style="display:none">
+    <strong>پیش‌نمایش برای مشتری</strong>
+    <div class="offerCard">
+      <div class="why" id="why"></div>
+      <h3 id="pTitle"></h3>
+      <div id="pBiz" class="tiny"></div>
+      <div><span id="pNew" class="price"></span><span id="pOld" class="old"></span></div>
+      <div class="row"><span id="pQty" class="pill"></span><span id="pTime" class="pill"></span></div>
+      <div id="pNote" class="tiny" style="margin-top:8px"></div>
+    </div>
+    <div class="story" id="story"></div>
+    <div class="actions"><button onclick="publishOffer()">تأیید و انتشار آزمایشی</button><button class="secondary" onclick="copyStory()">کپی متن استوری</button></div>
+    <div id="success" class="success">آفر ذخیره شد. از «دیدن سایت مشتری» برگرد و آن را بالای صفحه ببین.</div>
+  </section>
+
+  <section class="learn">
+    <strong>آموزش خیلی کوتاه</strong>
+    <details><summary>آفر خوب چه شکلی است؟</summary><p>واضح، محدود، قابل‌باور و دارای منفعت مشخص. مشتری باید در چند ثانیه بفهمد چه چیزی می‌گیرد و چرا الان.</p></details>
+    <details><summary>چقدر تخفیف بدهم؟</summary><p>بیشترین تخفیف لزوماً بهترین نیست. تخفیفی بده که برای مشتری محسوس باشد ولی حاشیه سودت را نابود نکند.</p></details>
+    <details><summary>فوریت واقعی یعنی چه؟</summary><p>مثلاً ۶ میز خالی، ۱۰ عدد باقی‌مانده، یک نوبت کنسل‌شده یا فقط ساعت کم‌تقاضا.</p></details>
+  </section>
 </div>
 <script>
 let draft=null;
-function val(id){return document.getElementById(id).value.trim()}
-function advise(alt=false){
- const name=val('name'), area=val('area'), kind=val('kind'), product=val('product'), price=parseInt(val('price')||'0'), d=parseInt(val('discount')||'0'), goal=val('goal'), qty=parseInt(val('qty')||'0');
- if(!name||!product||!price||!qty){alert('نام، محصول، قیمت و تعداد آفر را کامل کن.');return}
- let offer='',reason='';
- if(d===0){
-   offer = goal==='new' ? `${product} + نوشیدنی یا آیتم کم‌هزینه هدیه برای ${qty} نفر اول` : `${product} با یک هدیه کم‌هزینه برای ${qty} سفارش امروز`;
-   reason='چون نمی‌خواهی قیمت اصلی را بشکنی، بهتر است به‌جای تخفیف مستقیم یک مزیت کم‌هزینه ولی قابل‌دیدن اضافه شود.';
- }else{
-   const use=alt ? Math.max(5,d-5) : Math.min(d, goal==='capacity'?d:Math.max(10,d-5));
-   const final=Math.round(price*(100-use)/100);
-   offer = `${product}: ${use}٪ تخفیف، حدود ${final.toLocaleString('fa-IR')} هزار تومان؛ فقط برای ${qty} سفارش امروز`;
-   reason = goal==='capacity' ? 'برای ساعت‌های خلوت، محدودیت تعداد و «فقط امروز» باعث می‌شود تخفیف تبدیل به عادت دائمی مشتری نشود.' : goal==='volume' ? 'چون هدفت فروش بیشتر همین محصول است، آفر روی یک محصول مشخص متمرکز شده تا حاشیه سود بقیه منو حفظ شود.' : 'برای جذب مشتری جدید، آفر باید به‌اندازه کافی محسوس باشد اما عمومی و دائمی نشود.';
- }
- draft={name,area,kind,product,price,qty,offer,createdAt:Date.now()};
- document.getElementById('reason').textContent=reason;
- document.getElementById('offer').textContent=offer;
- document.getElementById('result').style.display='block';
- document.getElementById('success').style.display='none';
- document.getElementById('result').scrollIntoView({behavior:'smooth'});
+function v(id){return document.getElementById(id).value.trim()}
+function makePreview(){
+ const name=v('name'),area=v('area'),cat=v('cat'),product=v('product'),price=Number(v('price')),offerPrice=Number(v('offerPrice')),qty=Number(v('qty')),hours=Number(v('hours')),reason=v('reason'),note=v('note');
+ if(!name||!product||!price||!offerPrice||!qty){alert('نام کسب‌وکار، آفر، دو قیمت و تعداد را کامل کن.');return}
+ if(offerPrice>=price){alert('قیمت آفر باید کمتر از قیمت عادی باشد.');return}
+ const end=Date.now()+hours*3600000;
+ draft={name,area,cat,product,price,offerPrice,qty,hours,reason,note,end,createdAt:Date.now()};
+ why.textContent='چرا الان؟ '+reason;
+ pTitle.textContent=product;pBiz.textContent=name+' · '+area;pNew.textContent=offerPrice.toLocaleString('fa-IR')+' هزار';pOld.textContent=price.toLocaleString('fa-IR')+' هزار';pQty.textContent=qty.toLocaleString('fa-IR')+' ظرفیت';pTime.textContent='تا '+hours.toLocaleString('fa-IR')+' ساعت دیگر';pNote.textContent=note||'';
+ story.textContent=`⚡ ${product}\n${price.toLocaleString('fa-IR')} ← ${offerPrice.toLocaleString('fa-IR')} هزار تومان\n${reason} | فقط ${qty.toLocaleString('fa-IR')} ظرفیت\nتا ${hours.toLocaleString('fa-IR')} ساعت دیگر\nAlanOffer`;
+ preview.style.display='block';success.style.display='none';preview.scrollIntoView({behavior:'smooth'});
 }
-function approve(){
- if(!draft)return;
- let list=[];try{list=JSON.parse(localStorage.getItem('asanyab_provider_offers')||'[]')}catch(e){}
- list.unshift(draft);list=list.slice(0,10);localStorage.setItem('asanyab_provider_offers',JSON.stringify(list));
- document.getElementById('success').style.display='block';
-}
+function publishOffer(){if(!draft)return;let list=[];try{list=JSON.parse(localStorage.getItem('alanoffer_offers')||'[]')}catch(e){}list.unshift(draft);list=list.filter(x=>x.end>Date.now()).slice(0,20);localStorage.setItem('alanoffer_offers',JSON.stringify(list));success.style.display='block'}
+function copyStory(){const t=story.textContent;navigator.clipboard?.writeText(t).then(()=>alert('متن استوری کپی شد')).catch(()=>alert(t))}
+const claimed=localStorage.getItem('asanyab_claim_name');if(claimed)name.value=claimed;
 </script>
 </body>
 </html>
