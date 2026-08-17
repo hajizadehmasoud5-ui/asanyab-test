@@ -28,7 +28,7 @@ jobs:
       - name: Align and sign APK
         run: |
           BUILD_TOOLS=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
-          "$BUILD_TOOLS/zipalign" -p -f 4 android/app/build/outputs/apk/release/app-release-unsigned.apk AlanOffer-Ahvaz-v0.2-aligned.apk
+          "$BUILD_TOOLS/zipalign" -p -f 4 android/app/build/outputs/apk/release/app-release-unsigned.apk AlanOffer-Ahvaz-v0.3-aligned.apk
           "$BUILD_TOOLS/apksigner" sign \
             --ks alanoffer-test.jks \
             --ks-key-alias alanoffer \
@@ -37,12 +37,12 @@ jobs:
             --v1-signing-enabled true \
             --v2-signing-enabled true \
             --v3-signing-enabled true \
-            --out AlanOffer-Ahvaz-v0.2.apk \
-            AlanOffer-Ahvaz-v0.2-aligned.apk
-          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs AlanOffer-Ahvaz-v0.2.apk
+            --out AlanOffer-Ahvaz-v0.3.apk \
+            AlanOffer-Ahvaz-v0.3-aligned.apk
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs AlanOffer-Ahvaz-v0.3.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: AlanOffer-Ahvaz-v0.2
-          path: AlanOffer-Ahvaz-v0.2.apk
+          name: AlanOffer-Ahvaz-v0.3
+          path: AlanOffer-Ahvaz-v0.3.apk
           if-no-files-found: error
