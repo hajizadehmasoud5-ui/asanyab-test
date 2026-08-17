@@ -53,8 +53,9 @@ jobs:
         run: |
           mkdir -p downloads
           cp AlanOffer-Ahvaz-v0.3.apk downloads/AlanOffer-Ahvaz-v0.3.apk
+          base64 -w0 AlanOffer-Ahvaz-v0.3.apk > downloads/AlanOffer-Ahvaz-v0.3.apk.b64
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add downloads/AlanOffer-Ahvaz-v0.3.apk
-          git commit -m "Publish AlanOffer v0.3 APK" || exit 0
+          git add downloads/AlanOffer-Ahvaz-v0.3.apk downloads/AlanOffer-Ahvaz-v0.3.apk.b64
+          git commit -m "Publish AlanOffer v0.3 APK bundle" || exit 0
           git push
