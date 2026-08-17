@@ -17,6 +17,7 @@ import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
@@ -24,6 +25,7 @@ import android.widget.ProgressBar;
 
 public class MainActivity extends Activity {
     private static final String HOME = "https://hajizadehmasoud5-ui.github.io/asanyab-test/";
+    private static final String APP_VERSION = "0.3.0";
     private static final String CHANNEL_ID = "alanoffer_alerts";
     private WebView webView;
     private ProgressBar progress;
@@ -50,10 +52,16 @@ public class MainActivity extends Activity {
         root.addView(progress, progressParams);
         setContentView(root);
 
-        webView.getSettings().setJavaScriptEnabled(true);
-        webView.getSettings().setDomStorageEnabled(true);
-        webView.getSettings().setDatabaseEnabled(true);
-        webView.getSettings().setMediaPlaybackRequiresUserGesture(true);
+        WebSettings settings = webView.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setDatabaseEnabled(true);
+        settings.setMediaPlaybackRequiresUserGesture(true);
+        settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+
+        // The UI lives on GitHub Pages during the MVP. Never let an old WebView cache
+        // hide newly deployed product changes while we are testing quickly.
+        webView.clearCache(true);
         webView.addJavascriptInterface(new AlanOfferBridge(this), "AlanOfferAndroid");
 
         webView.setWebChromeClient(new WebChromeClient() {
@@ -84,12 +92,20 @@ public class MainActivity extends Activity {
             }
         });
 
-        if (savedInstanceState == null) webView.loadUrl(HOME);
-        else webView.restoreState(savedInstanceState);
+        if (savedInstanceState == null) webView.loadUrl(freshHome());
+        else {
+            webView.restoreState(savedInstanceState);
+            webView.loadUrl(freshHome());
+        }
+    }
+
+    private String freshHome() {
+        return HOME + "?app=" + APP_VERSION + "&fresh=" + System.currentTimeMillis();
     }
 
     private void injectNativeHooks() {
         String js = "javascript:(function(){" +
+                "window.__alanAppVersion='" + APP_VERSION + "';" +
                 "if(window.__alanNativeHooked)return;window.__alanNativeHooked=true;" +
                 "var g=window.toggleGlobalNotify;window.toggleGlobalNotify=function(){if(g)g();try{if(window.AlanOfferAndroid){var a=document.getElementById('offerArea');var c=document.getElementById('offerCat');AlanOfferAndroid.subscribe(a?a.value:'',c?c.value:'');}}catch(e){}};" +
                 "var t=window.toggleNotify;window.toggleNotify=function(id){if(t)t(id);try{if(window.AlanOfferAndroid){var a=document.getElementById('offerArea');var c=document.getElementById('offerCat');AlanOfferAndroid.subscribe(a?a.value:'',c?c.value:'');}}catch(e){}};" +
@@ -159,6 +175,17 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void refresh() {
+            runOnUiThread(() -> {
+                webView.clearCache(true);
+                webView.loadUrl(freshHome());
+            });
+        }
+
+        @JavascriptInterface
         public String getCity() { return "اهواز"; }
+
+        @JavascriptInterface
+        public String getVersion() { return APP_VERSION; }
     }
 }
