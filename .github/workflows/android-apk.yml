@@ -8,6 +8,9 @@ on:
       - 'android/**'
       - '.github/workflows/android-apk.yml'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -40,9 +43,18 @@ jobs:
             --out AlanOffer-Ahvaz-v0.3.apk \
             AlanOffer-Ahvaz-v0.3-aligned.apk
           "$BUILD_TOOLS/apksigner" verify --verbose --print-certs AlanOffer-Ahvaz-v0.3.apk
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: AlanOffer-Ahvaz-v0.3
           path: AlanOffer-Ahvaz-v0.3.apk
           if-no-files-found: error
+      - name: Publish APK in repository
+        run: |
+          mkdir -p downloads
+          cp AlanOffer-Ahvaz-v0.3.apk downloads/AlanOffer-Ahvaz-v0.3.apk
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add downloads/AlanOffer-Ahvaz-v0.3.apk
+          git commit -m "Publish AlanOffer v0.3 APK" || exit 0
+          git push
