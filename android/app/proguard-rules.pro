@@ -1,1 +1,0 @@
-# AlanOffer Android MVP

@@ -1,1 +1,0 @@
-This branch will be reduced to server runtime files only after final verification.
