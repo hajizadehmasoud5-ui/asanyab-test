@@ -1,0 +1,3 @@
+Cloudiva deploy source prepared from active myapp.py on 2026-08-18.
+AlanOffer blueprint sanitized: no hardcoded admin setup secret.
+Runtime data and secrets remain outside Git.
