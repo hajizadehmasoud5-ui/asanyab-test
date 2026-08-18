@@ -46,9 +46,9 @@
         </div>
       </div>
 
-      <div class="field" id="needField" style="display:none">
+      <div class="field" id="needField">
         <label>دقیقاً چی می‌خوای؟ <span class="required">*</span></label>
-        <input class="input" id="needText" maxlength="220" placeholder="مثلاً تعمیر کولر، کفش ورزشی، کلاس زبان...">
+        <input class="input" id="needText" maxlength="220" placeholder="مثلاً جرم‌گیری، پیتزا، تعمیر کولر...">
       </div>
 
       <div class="twocol">
@@ -104,7 +104,6 @@
         <div class="privacy">🔒 <span>این شماره فقط برای پیگیری همین درخواست آزمایشی استفاده می‌شود و به کسب‌وکارها نمایش داده نمی‌شود.</span></div>
       </div>
       <div class="error" id="error2"></div>
-      <button class="back" id="editDemand">برگشت و اصلاح درخواست</button>
     </div>
 
     <div class="done" id="done">
@@ -127,7 +126,7 @@ const $=id=>document.getElementById(id);
 const state={category:'', demandId:'', started:false};
 const labels={food:'غذا',dentist:'دندانپزشکی',beauty:'زیبایی',auto:'خودرو',home:'خدمات منزل',other:'سایر'};
 const session=(()=>{let s=localStorage.getItem('alanoffer_mvp_session');if(!s){s='s_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9);localStorage.setItem('alanoffer_mvp_session',s)}return s})();
-function num(v){return Number(String(v||'').replace(/[^0-9]/g,''))||0}
+function latinDigits(v){return String(v||'').replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d))}function num(v){return Number(latinDigits(v).replace(/[^0-9]/g,''))||0}
 async function api(path,opts={}){const r=await fetch(API+path,{...opts,headers:{'Content-Type':'application/json',...(opts.headers||{})}});let d={};try{d=await r.json()}catch{}if(!r.ok){const e=new Error(d.error||('HTTP '+r.status));e.code=d.error||'';throw e}return d}
 function event(name,meta={}){api('/api/mvp/events',{method:'POST',body:JSON.stringify({event:name,sessionId:session,category:state.category,area:$('area').value||'',meta})}).catch(()=>{})}
 function started(){if(!state.started){state.started=true;event('form_start')}}
@@ -135,14 +134,13 @@ function showError(id,msg){const e=$(id);e.textContent=msg;e.classList.toggle('s
 function setBusy(btn,on,label){btn.classList.toggle('loading',on);btn.disabled=on;if(on){btn.dataset.old=btn.textContent;btn.textContent=label}else if(btn.dataset.old){btn.textContent=btn.dataset.old}}
 function scrollForm(){ $('formCard').scrollIntoView({behavior:'smooth',block:'start'}) }
 $('heroCta').addEventListener('click',()=>{event('cta_click');scrollForm()});
-$('catChips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;started();state.category=b.dataset.value;document.querySelectorAll('.chip').forEach(x=>x.classList.toggle('on',x===b));$('needField').style.display=state.category==='other'?'block':'none';if(state.category!=='other')$('needText').value=''});
+$('catChips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;started();state.category=b.dataset.value;document.querySelectorAll('.chip').forEach(x=>x.classList.toggle('on',x===b));const ph={food:'مثلاً پیتزا دو نفره، غذای ایرانی...',dentist:'مثلاً جرم‌گیری، ایمپلنت، ترمیم...',beauty:'مثلاً لیزر، رنگ مو، پاکسازی...',auto:'مثلاً تعویض روغن، لاستیک، صافکاری...',home:'مثلاً تعمیر کولر، برقکاری...',other:'مثلاً کفش ورزشی، کلاس زبان...'};$('needText').placeholder=ph[state.category]||'دقیقاً چی لازم داری؟'});
 ['area','waitHours','budget','preferences','needText'].forEach(id=>$(id).addEventListener('input',started));
 $('budget').addEventListener('input',e=>{const n=num(e.target.value);e.target.value=n?n.toLocaleString('fa-IR'):''});
-function validateDemand(){if(!state.category)return 'اول دسته را انتخاب کن.';if(state.category==='other'&&$('needText').value.trim().length<2)return 'بنویس دقیقاً دنبال چه چیزی هستی.';if(!$('area').value)return 'محله را انتخاب کن.';if(!$('waitHours').value)return 'زمانی که می‌توانی صبر کنی را انتخاب کن.';return ''}
-$('submitDemand').addEventListener('click',async()=>{showError('error1','');const err=validateDemand();if(err){showError('error1',err);return}const btn=$('submitDemand');setBusy(btn,true,'در حال ثبت...');try{const payload={category:state.category,needText:$('needText').value.trim(),city:'اهواز',area:$('area').value,waitHours:Number($('waitHours').value),maxBudget:num($('budget').value),preferences:$('preferences').value.trim(),source:'instagram-mvp-v1'};const d=await api('/api/demands',{method:'POST',body:JSON.stringify(payload)});state.demandId=d.id;event('demand_created',{demandId:d.id,waitHours:payload.waitHours,hasBudget:!!payload.maxBudget,hasPreference:!!payload.preferences});$('step1').classList.add('hide');$('step2').classList.add('show');window.scrollTo({top:$('formCard').offsetTop-10,behavior:'smooth'});$('contact').focus()}catch(e){showError('error1',e.code==='invalid_demand'?'اطلاعات درخواست کامل نیست. دوباره بررسی کن.':'اتصال برقرار نشد. چند لحظه بعد دوباره امتحان کن.')}finally{setBusy(btn,false)}});
-function validMobile(v){const d=String(v||'').replace(/\D/g,'');return /^09\d{9}$/.test(d)||/^989\d{9}$/.test(d)}
+function validateDemand(){if(!state.category)return 'اول دسته را انتخاب کن.';if($('needText').value.trim().length<2)return 'بنویس دقیقاً دنبال چه چیزی هستی.';if(!$('area').value)return 'محله را انتخاب کن.';if(!$('waitHours').value)return 'زمانی که می‌توانی صبر کنی را انتخاب کن.';return ''}
+$('submitDemand').addEventListener('click',async()=>{showError('error1','');const err=validateDemand();if(err){showError('error1',err);return}const btn=$('submitDemand');setBusy(btn,true,'در حال ثبت...');try{const payload={category:state.category,needText:$('needText').value.trim(),city:'اهواز',area:$('area').value,waitHours:Number($('waitHours').value),maxBudget:num($('budget').value),preferences:$('preferences').value.trim(),source:(()=>{const q=new URLSearchParams(location.search);return [q.get('utm_source')||'direct',q.get('utm_campaign')||'mvp-v1'].join(':').slice(0,80)})()};const d=await api('/api/demands',{method:'POST',body:JSON.stringify(payload)});state.demandId=d.id;event('demand_created',{demandId:d.id,waitHours:payload.waitHours,hasBudget:!!payload.maxBudget,hasPreference:!!payload.preferences});$('step1').classList.add('hide');$('step2').classList.add('show');window.scrollTo({top:$('formCard').offsetTop-10,behavior:'smooth'});$('contact').focus()}catch(e){showError('error1',e.code==='invalid_demand'?'اطلاعات درخواست کامل نیست. دوباره بررسی کن.':'اتصال برقرار نشد. چند لحظه بعد دوباره امتحان کن.')}finally{setBusy(btn,false)}});
+function validMobile(v){const d=latinDigits(v).replace(/\D/g,'');return /^09\d{9}$/.test(d)||/^989\d{9}$/.test(d)}
 $('saveContact').addEventListener('click',async()=>{showError('error2','');const c=$('contact').value.trim();if(!validMobile(c)){showError('error2','شماره موبایل را به شکل 09xxxxxxxxx وارد کن.');return}const btn=$('saveContact');setBusy(btn,true,'در حال فعال‌سازی...');try{await api('/api/demands/'+encodeURIComponent(state.demandId)+'/contact',{method:'POST',body:JSON.stringify({contact:c,contactType:'mobile'})});event('contact_saved',{demandId:state.demandId});$('step2').classList.add('hide');$('done').classList.add('show');renderSummary();window.scrollTo({top:$('formCard').offsetTop-10,behavior:'smooth'})}catch(e){showError('error2',e.code==='invalid_mobile'?'شماره موبایل معتبر نیست.':'خبررسانی فعال نشد. دوباره امتحان کن.')}finally{setBusy(btn,false)}});
-$('editDemand').addEventListener('click',()=>{$('step2').classList.remove('show');$('step1').classList.remove('hide');state.demandId='';scrollForm()});
 function renderSummary(){const b=num($('budget').value);const waits={'12':'امروز','72':'تا ۳ روز','168':'تا ۷ روز','720':'تا ۳۰ روز'};$('summary').innerHTML=`<b>${labels[state.category]||'درخواست'}</b>${$('needText').value.trim()?` · ${escapeHtml($('needText').value.trim())}`:''}<br>📍 ${escapeHtml($('area').value)} · ⏳ ${waits[$('waitHours').value]||''}${b?`<br>💰 تا ${b.toLocaleString('fa-IR')} تومان`:''}${$('preferences').value.trim()?`<br>⭐ ${escapeHtml($('preferences').value.trim())}`:''}`}
 function escapeHtml(s){return String(s).replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
 $('newDemand').addEventListener('click',()=>{location.reload()});
