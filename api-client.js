@@ -15,7 +15,8 @@
   async function neshanSearch(params){return req('/api/neshan/search'+qs(params))}
   async function pending(token){return req('/api/admin/submissions?status=pending',{headers:{Authorization:'Bearer '+token}})}
   async function review(id,action,token){return req('/api/admin/submissions/'+encodeURIComponent(id)+'/'+action,{method:'POST',headers:{Authorization:'Bearer '+token}})}
+  async function adminAddBusiness(rec,token){return req('/api/admin/businesses',{method:'POST',headers:{Authorization:'Bearer '+token},body:JSON.stringify(rec)})}
   function readLocal(){try{return JSON.parse(localStorage.getItem(LOCAL)||'[]')}catch(e){return []}}
   function saveLocal(rec){const list=readLocal();list.unshift(rec);localStorage.setItem(LOCAL,JSON.stringify(list.slice(0,1000)));return rec}
-  global.AlanApi={readConfig,saveConfig,configured,health,listBusinesses,submitBusiness,neshanSearch,pending,review,readLocal,saveLocal};
+  global.AlanApi={readConfig,saveConfig,configured,health,listBusinesses,submitBusiness,neshanSearch,pending,review,adminAddBusiness,readLocal,saveLocal};
 })(window);
