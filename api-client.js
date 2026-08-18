@@ -2,7 +2,7 @@
   'use strict';
   const CFG='alanoffer_api_config_v1';
   const LOCAL='alanoffer_businesses_v1';
-  const DEFAULT={baseUrl:''};
+  const DEFAULT={baseUrl:'https://python-0jatcc.cldv.dev/alanoffer'};
   function readConfig(){try{return {...DEFAULT,...JSON.parse(localStorage.getItem(CFG)||'{}')}}catch(e){return {...DEFAULT}}}
   function saveConfig(cfg){const next={...readConfig(),...cfg};next.baseUrl=String(next.baseUrl||'').trim().replace(/\/+$/,'');localStorage.setItem(CFG,JSON.stringify(next));return next}
   function base(){return readConfig().baseUrl}
@@ -12,14 +12,12 @@
   async function health(){return req('/api/health')}
   async function listBusinesses(filters={}){return req('/api/businesses'+qs(filters))}
   async function submitBusiness(rec){return req('/api/submissions',{method:'POST',body:JSON.stringify(rec)})}
-  async function neshanSearch(params){return req('/api/neshan/search'+qs(params))}
   async function pending(token){return req('/api/admin/submissions?status=pending',{headers:{Authorization:'Bearer '+token}})}
   async function review(id,action,token){return req('/api/admin/submissions/'+encodeURIComponent(id)+'/'+action,{method:'POST',headers:{Authorization:'Bearer '+token}})}
   async function adminAddBusiness(rec,token){return req('/api/admin/businesses',{method:'POST',headers:{Authorization:'Bearer '+token},body:JSON.stringify(rec)})}
-  async function osmCatalog(token){return req('/api/admin/osm/catalog',{headers:{Authorization:'Bearer '+token}})}
-  async function osmSearch(top,sub,token){return req('/api/admin/osm/search'+qs({top,sub}),{headers:{Authorization:'Bearer '+token}})}
-  async function osmImport(rec,token){return req('/api/admin/osm/import',{method:'POST',headers:{Authorization:'Bearer '+token},body:JSON.stringify(rec)})}
+  async function osmSearch(top,sub){return req('/api/osm/search'+qs({top,sub}))}
+  async function osmSync(top,sub){return req('/api/osm/sync',{method:'POST',body:JSON.stringify({top,sub})})}
   function readLocal(){try{return JSON.parse(localStorage.getItem(LOCAL)||'[]')}catch(e){return []}}
   function saveLocal(rec){const list=readLocal();list.unshift(rec);localStorage.setItem(LOCAL,JSON.stringify(list.slice(0,1000)));return rec}
-  global.AlanApi={readConfig,saveConfig,configured,health,listBusinesses,submitBusiness,neshanSearch,pending,review,adminAddBusiness,osmCatalog,osmSearch,osmImport,readLocal,saveLocal};
+  global.AlanApi={readConfig,saveConfig,configured,health,listBusinesses,submitBusiness,pending,review,adminAddBusiness,osmSearch,osmSync,readLocal,saveLocal};
 })(window);
