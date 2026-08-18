@@ -7,7 +7,8 @@ window.addEventListener('DOMContentLoaded',()=>{
     try{
       if(!window.AlanBiz) await load('business-categories.js?v=3');
       if(!window.AlanMapProvider) await load('map-provider.js?v=1');
-      await load('directory-enhance.js?v=3');
+      if(!window.AlanApi) await load('api-client.js?v=1');
+      await load('directory-enhance.js?v=4');
     }catch(e){console.error('AlanOffer directory enhancement failed',e)}
   })();
 });
