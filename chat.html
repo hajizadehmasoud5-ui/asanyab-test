@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>الان‌آفر | فقط بگو چی می‌خوای</title>
+<meta name="theme-color" content="#ff6500">
+<style>
+:root{--o:#ff6500;--ink:#151515;--mut:#777;--line:#ececec;--bg:#f5f6f7;--me:#171717;--ai:#fff;--ok:#147a4b}*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--bg);color:var(--ink);font-family:Tahoma,Arial,sans-serif}.app{height:100%;max-width:720px;margin:auto;display:flex;flex-direction:column;background:#fff;box-shadow:0 0 50px #0000000d}.top{min-height:66px;padding:10px 15px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px}.brand{font-size:21px;font-weight:900}.brand b{color:var(--o)}.online{display:flex;align-items:center;gap:6px;color:#777;font-size:10px}.dot{width:8px;height:8px;border-radius:50%;background:#bbb}.dot.ok{background:#20a565;box-shadow:0 0 0 4px #20a56516}.intro{padding:13px 14px 7px}.intro h1{font-size:22px;margin:0 0 5px}.intro p{font-size:11px;color:var(--mut);margin:0;line-height:1.9}.roles{display:flex;gap:7px;padding:7px 14px 10px;overflow:auto}.role{white-space:nowrap;border:1px solid #ddd;background:#fff;border-radius:999px;padding:9px 12px;font-size:11px;cursor:pointer}.role.on{background:#fff2e8;border-color:#ffb985;color:#a84700;font-weight:900}.chat{flex:1;overflow:auto;padding:10px 14px 120px;scroll-behavior:smooth}.row{display:flex;margin:9px 0}.row.ai{justify-content:flex-start}.row.me{justify-content:flex-end}.bubble{max-width:84%;padding:11px 13px;border-radius:17px;font-size:13px;line-height:1.9;white-space:pre-wrap;word-break:break-word}.ai .bubble{background:var(--ai);border:1px solid var(--line);border-bottom-right-radius:5px;box-shadow:0 3px 12px #00000008}.me .bubble{background:var(--me);color:#fff;border-bottom-left-radius:5px}.typing{display:flex;gap:4px;align-items:center;height:38px}.typing i{width:6px;height:6px;background:#aaa;border-radius:50%;animation:pulse 1s infinite}.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}@keyframes pulse{0%,100%{opacity:.3;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}}.ready{margin:12px 0;background:#f0faf5;border:1px solid #caeedc;border-radius:16px;padding:12px;color:#155f3d;font-size:11px;line-height:1.9}.ready b{display:block;font-size:13px;margin-bottom:3px}.composerWrap{position:absolute;bottom:0;left:0;right:0;max-width:720px;margin:auto;background:linear-gradient(transparent,#fff 24%);padding:28px 12px max(11px,env(safe-area-inset-bottom))}.composer{display:grid;grid-template-columns:1fr auto;gap:7px;background:#fff;border:1px solid #ddd;border-radius:20px;padding:6px 7px 6px 8px;box-shadow:0 8px 28px #00000018}.composer textarea{border:0;outline:0;resize:none;min-height:46px;max-height:120px;padding:10px 8px;font:inherit;font-size:13px;line-height:1.7;background:transparent}.send{width:46px;height:46px;border:0;border-radius:15px;background:var(--o);color:#fff;font-size:20px;font-weight:900;cursor:pointer;align-self:end}.send:disabled{opacity:.45}.fine{text-align:center;color:#aaa;font-size:8px;margin-top:5px}.system{font-size:9px;color:#999;text-align:center;margin:8px 0}.retry{border:0;background:none;color:#b54800;text-decoration:underline;font-size:10px;cursor:pointer}@media(max-width:600px){.app{box-shadow:none}.intro h1{font-size:20px}.bubble{max-width:89%}}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="top"><div class="brand">الان<b>آفر</b></div><div class="online"><span class="dot" id="dot"></span><span id="netText">در حال اتصال...</span></div></header>
+<section class="intro"><h1>فقط بگو چی می‌خوای.</h1><p>فرم و فیلتر نداریم. هوش مصنوعی باهات حرف می‌زنه، نیازت رو می‌فهمه و اطلاعات لازم رو خودش جمع می‌کنه.</p></section>
+<div class="roles"><button class="role" id="buyerBtn">🙋 دنبال چیزی هستم</button><button class="role" id="sellerBtn">🏪 کسب‌وکار دارم</button><button class="role" id="freshBtn">↻ شروع تازه</button></div>
+<main class="chat" id="chat"></main>
+<div class="composerWrap"><div class="composer"><textarea id="input" rows="1" placeholder="مثلاً امشب یه رستوران خوب نزدیکم می‌خوام..."></textarea><button class="send" id="send">↑</button></div><div class="fine">هرطور راحتی بنویس؛ فارسی، عربی یا انگلیسی.</div></div>
+</div>
+<script>
+(()=>{'use strict';
+const API='https://python-0jatcc.cldv.dev/alanoffer';
+const $=id=>document.getElementById(id);let sid='',role='',sending=false,typingEl=null;
+function scroll(){requestAnimationFrame(()=>$('chat').scrollTop=$('chat').scrollHeight)}
+function add(text,who='ai'){const r=document.createElement('div');r.className='row '+who;const b=document.createElement('div');b.className='bubble';b.textContent=text;r.appendChild(b);$('chat').appendChild(r);scroll();return r}
+function system(text){const d=document.createElement('div');d.className='system';d.textContent=text;$('chat').appendChild(d);scroll()}
+function typing(on){if(on&&!typingEl){typingEl=document.createElement('div');typingEl.className='row ai';typingEl.innerHTML='<div class="bubble typing"><i></i><i></i><i></i></div>';$('chat').appendChild(typingEl);scroll()}else if(!on&&typingEl){typingEl.remove();typingEl=null}}
+async function req(path,body){const r=await fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});let d={};try{d=await r.json()}catch{}if(!r.ok)throw new Error(d.error||'connection');return d}
+function roleUI(){ $('buyerBtn').classList.toggle('on',role==='buyer');$('sellerBtn').classList.toggle('on',role==='seller');$('input').placeholder=role==='seller'?'مثلاً من رستوران دارم توی کیانپارس...':'مثلاً ایمپلنت می‌خوام، عجله ندارم...'}
+async function start(r=''){if(sending)return;role=r;roleUI();sid='';$('chat').innerHTML='';sending=true;$('send').disabled=true;typing(true);try{const d=await req('/api/chat/start',{role});sid=d.sessionId;typing(false);add(d.reply,'ai');if(role==='seller')system('حالت کسب‌وکار');else if(role==='buyer')system('حالت متقاضی')}catch(e){typing(false);add('پشت‌صحنه نسخه جدید هنوز فعال نشده. بعد از راه‌اندازی سرور همین صفحه آماده است.','ai');const x=document.createElement('button');x.className='retry';x.textContent='دوباره امتحان کن';x.onclick=()=>start(role);$('chat').appendChild(x)}finally{sending=false;$('send').disabled=false;$('input').focus();scroll()}}
+function readyCard(summary){if(!summary)return;const d=document.createElement('div');d.className='ready';d.innerHTML='<b>✓ آماده شد</b>'+escapeHtml(summary);$('chat').appendChild(d);scroll()}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+async function send(){const text=$('input').value.trim();if(!text||sending)return;if(!sid){await start(role);if(!sid)return}sending=true;$('send').disabled=true;$('input').value='';resize();add(text,'me');typing(true);try{const d=await req('/api/chat/message',{sessionId:sid,role,text});typing(false);if(d.role&&d.role!=='unknown'){role=d.role;roleUI()}add(d.reply||'','ai');if(d.ready)readyCard(d.summary||'اطلاعات لازم ثبت شد.')}catch(e){typing(false);add('اتصال قطع شد. پیامت نپرید؛ دوباره بفرست.','ai')}finally{sending=false;$('send').disabled=false;$('input').focus();scroll()}}
+function resize(){const x=$('input');x.style.height='auto';x.style.height=Math.min(x.scrollHeight,120)+'px'}
+$('send').onclick=send;$('input').addEventListener('input',resize);$('input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});$('buyerBtn').onclick=()=>start('buyer');$('sellerBtn').onclick=()=>start('seller');$('freshBtn').onclick=()=>start('');
+fetch(API+'/api/chat/health',{cache:'no-store'}).then(r=>r.ok?r.json():Promise.reject()).then(d=>{if(d.ok){$('dot').classList.add('ok');$('netText').textContent=d.ai?'هوش مصنوعی آماده':'حالت ساده آماده'}}).catch(()=>{$('netText').textContent='نیاز به راه‌اندازی پشت‌صحنه'});
+start('');
+})();
+</script>
+</body>
+</html>
