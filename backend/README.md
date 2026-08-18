@@ -1,46 +1,36 @@
-# AlanOffer backend
+# AlanOffer backend — active MVP
 
-Backend اولیه برای تست واقعی اهواز.
+Active backend file: `alanoffer_blueprint.py`
 
-## معماری
-- Node.js + Express
-- SQLite روی دیسک پایدار
-- ثبت عمومی -> صف pending
-- تایید/رد مدیر -> بانک عمومی
-- Neshan Search API فقط از سمت سرور
+This is a Flask Blueprint intended for the existing Cloudiva Python service and mounts under `/alanoffer`.
 
-## اجرای محلی
-```bash
-cd backend
-npm install
-ADMIN_TOKEN='a-long-random-secret' npm start
+## Required endpoints
+
+- `GET /alanoffer/api/chat/health`
+- `POST /alanoffer/api/chat/start`
+- `POST /alanoffer/api/chat/message`
+
+## Integration
+
+In the existing Flask service, import and register the blueprint once:
+
+```python
+from alanoffer_blueprint import create_alanoffer_blueprint
+
+app.register_blueprint(create_alanoffer_blueprint(DATA_ROOT))
 ```
 
-## متغیرهای محیطی
-```text
-PORT=8787
-DB_PATH=/app/data/alanoffer.db
-CORS_ORIGINS=https://hajizadehmasoud5-ui.github.io
-ADMIN_TOKEN=<long-random-secret>
-NESHAN_API_KEY=<service-api-key-after-activation>
-```
+If the service already imports `create_alanoffer_blueprint`, replace the old `alanoffer_blueprint.py` with the new file and restart the service. No Node server is required.
 
-## استقرار Docker
-این پوشه Dockerfile آماده دارد. روی سرویس میزبان یک دیسک persistent به `/app/data` متصل کنید تا دیتابیس با deploy مجدد پاک نشود.
+## Storage
 
-پس از استقرار، آدرس HTTPS بک‌اند را در صفحه `backend-setup.html` ثبت کنید.
+SQLite is stored under `<DATA_ROOT>/alanoffer/alanoffer.db` unless `ALANOFFER_DB_PATH` is set.
 
-## صفحات مدیریتی سایت
-- `backend-setup.html`: اتصال سایت به بک‌اند
-- `admin.html`: تایید/رد ثبت‌های کاربران
-- `import-neshan.html`: جست‌وجو در نشان و ورود انتخابی کسب‌وکارها
+Tables used by this MVP:
 
-## APIهای اصلی
-- `GET /api/health`
-- `GET /api/businesses`
-- `POST /api/submissions`
-- `GET /api/admin/submissions`
-- `POST /api/admin/submissions/:id/approve`
-- `POST /api/admin/submissions/:id/reject`
-- `POST /api/admin/businesses`
-- `GET /api/neshan/search`
+- `chat_sessions`: temporary conversation state
+- `chat_records`: completed buyer/seller records
+
+## Current scope
+
+The Chat-first MVP is national (`scope=iran`). It currently uses a deterministic structured conversation (`ai=false`) so the buyer/seller loop can be tested reliably before adding an LLM, Match, and notifications.
