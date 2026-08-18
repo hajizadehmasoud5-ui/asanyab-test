@@ -1,0 +1,31 @@
+# Runtime data and secrets
+/data/
+*.env
+.env
+.env.*
+!*.env.example
+__pycache__/
+*.py[cod]
+*.log
+*.sqlite
+*.sqlite3
+*.db
+
+# Local/admin secrets
+admin_token.txt
+admin_setup_used.txt
+
+# Old server backups/installers
+myapp_backup*.py
+myapp_before_*.py
+myapp_old*.py
+myapp_v*_backup.py
+requirements_before_*.txt
+install_content_studio_*.py
+
+# Generated media/projects
+*.mp4
+*.wav
+*.m4a
+*.mp3
+*_package.zip
