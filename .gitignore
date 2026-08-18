@@ -1,5 +1,6 @@
 # Runtime data and secrets
 /data/
+/tools/
 *.env
 .env
 .env.*
