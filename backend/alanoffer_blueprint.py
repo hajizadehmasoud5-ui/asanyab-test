@@ -12,30 +12,69 @@ from typing import Any
 from flask import Blueprint, jsonify, request
 
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
+
+# DrLinq MVP: demand first. We collect only what is needed to decide
+# which providers should receive the request. Provider acquisition happens
+# after a real request exists, not before.
 BUYER_FLOW = [
-    ("need", "دقیقاً چی می‌خوای؟ یک جمله کافیه.", "What exactly do you need? One sentence is enough."),
-    ("city", "کدوم شهر هستی؟", "Which city are you in?"),
-    ("area", "کدوم محله یا منطقه؟ اگر فرقی نداره بنویس «فرقی نداره».", "Which neighborhood or area? If it does not matter, say 'any'."),
-    ("wait", "تا کی می‌تونی صبر کنی؟ مثلاً امروز، ۳ روز یا یک هفته.", "How long can you wait? For example today, 3 days, or a week."),
-    ("contact", "برای خبر دادن یک شماره موبایل یا واتساپ بفرست.", "Send a mobile or WhatsApp number so we can notify you."),
+    {
+        "key": "service",
+        "question": "چه خدمت یا درمانی می‌خوای؟",
+        "hint": "مثلاً ایمپلنت، ترمیم دندان، لیزر پوست یا فیزیوتراپی",
+        "options": ["ایمپلنت", "ترمیم دندان", "عصب‌کشی", "روکش", "ارتودنسی", "نمی‌دانم"],
+        "multi": False,
+    },
+    {
+        "key": "city",
+        "question": "در کدوم شهر دنبال درمانگر می‌گردی؟",
+        "hint": "فعلاً فقط مراکز استان‌ها پوشش داده می‌شوند.",
+        "options": [],
+        "multi": False,
+    },
+    {
+        "key": "priorities",
+        "question": "برای انتخاب درمانگر، کدوم چیزها برات مهم‌تره؟ حداکثر دو مورد.",
+        "hint": "می‌تونی دو گزینه انتخاب کنی یا خودت بنویسی.",
+        "options": ["قیمت بهتر", "کیفیت", "سرعت", "اقساط", "نزدیکی"],
+        "multi": True,
+    },
+    {
+        "key": "case_size",
+        "question": "حجم کارت تقریباً چقدره؟",
+        "hint": "مثلاً ۱ ایمپلنت، ۵ دندان، ۱۰ جلسه فیزیوتراپی؛ اگر نمی‌دونی هم اشکالی نداره.",
+        "options": ["یک مورد", "۲ تا ۳ مورد", "۴ مورد یا بیشتر", "نمی‌دانم"],
+        "multi": False,
+    },
+    {
+        "key": "wait",
+        "question": "تا کی می‌تونی برای پیدا شدن گزینه مناسب صبر کنی؟",
+        "hint": "",
+        "options": ["امروز", "تا ۳ روز", "تا یک هفته", "عجله ندارم"],
+        "multi": False,
+    },
+    {
+        "key": "contact",
+        "question": "برای خبر دادن، شماره موبایل یا واتساپت رو بفرست.",
+        "hint": "فقط برای پیگیری همین درخواست استفاده می‌شود.",
+        "options": [],
+        "multi": False,
+    },
 ]
-SELLER_FLOW = [
-    ("business_name", "اسم کسب‌وکارت چیه؟", "What is your business name?"),
-    ("offer", "الان دقیقاً چه محصول، خدمت یا ظرفیت خالی داری؟", "What product, service, or unused capacity do you have right now?"),
-    ("city", "کسب‌وکارت در کدوم شهره؟", "Which city is your business in?"),
-    ("area", "کدوم محله یا منطقه؟", "Which neighborhood or area?"),
-    ("price", "قیمت عادی و قیمت پیشنهادی رو باهم بنویس؛ مثلاً ۵۰۰ → ۳۵۰ هزار تومان.", "Send the normal price and offer price together, e.g. 500 -> 350."),
-    ("availability", "چندتا ظرفیت/موجودی داری و تا کی معتبره؟", "How much capacity/stock is available and until when?"),
-    ("contact", "یک شماره موبایل یا واتساپ برای پیگیری بفرست.", "Send a mobile or WhatsApp number for follow-up."),
-]
+
+PROVINCE_CAPITALS = {
+    "اراک", "اردبیل", "ارومیه", "اصفهان", "اهواز", "ایلام", "بجنورد", "بندرعباس",
+    "بوشهر", "بیرجند", "تبریز", "تهران", "خرم آباد", "خرم‌آباد", "رشت", "زاهدان",
+    "زنجان", "ساری", "سمنان", "سنندج", "شهرکرد", "شیراز", "قزوین", "قم", "کرج",
+    "کرمان", "کرمانشاه", "گرگان", "مشهد", "همدان", "یاسوج", "یزد",
+}
 
 
 def create_alanoffer_blueprint(data_root: str | Path) -> Blueprint:
-    """Minimal AlanOffer Chat-first backend for the existing Cloudiva Flask app.
+    """DrLinq demand-first MVP mounted on the existing /alanoffer path.
 
-    Mount under /alanoffer. Data is stored centrally in SQLite so buyer/seller
-    sessions no longer depend on browser localStorage.
+    The route prefix stays unchanged so the current Cloudiva integration does not
+    break while the public brand and domain move to DrLinq.
     """
     bp = Blueprint("alanoffer", __name__, url_prefix="/alanoffer")
     root = Path(data_root) / "alanoffer"
@@ -46,7 +85,7 @@ def create_alanoffer_blueprint(data_root: str | Path) -> Blueprint:
         x.strip()
         for x in os.environ.get(
             "ALANOFFER_CORS_ORIGINS",
-            "https://hajizadehmasoud5-ui.github.io",
+            "https://hajizadehmasoud5-ui.github.io,https://drlinq.ir,https://www.drlinq.ir",
         ).split(",")
         if x.strip()
     }
@@ -63,7 +102,7 @@ def create_alanoffer_blueprint(data_root: str | Path) -> Blueprint:
                 """
                 CREATE TABLE IF NOT EXISTS chat_sessions(
                     id TEXT PRIMARY KEY,
-                    role TEXT NOT NULL DEFAULT 'unknown',
+                    role TEXT NOT NULL DEFAULT 'buyer',
                     data_json TEXT NOT NULL DEFAULT '{}',
                     ready INTEGER NOT NULL DEFAULT 0,
                     created_at INTEGER NOT NULL,
@@ -77,11 +116,13 @@ def create_alanoffer_blueprint(data_root: str | Path) -> Blueprint:
                     session_id TEXT NOT NULL UNIQUE,
                     role TEXT NOT NULL,
                     payload_json TEXT NOT NULL,
-                    status TEXT NOT NULL DEFAULT 'new',
+                    status TEXT NOT NULL DEFAULT 'needs_provider_search',
                     created_at INTEGER NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS idx_chat_records_role_created
                     ON chat_records(role, created_at);
+                CREATE INDEX IF NOT EXISTS idx_chat_records_status_created
+                    ON chat_records(status, created_at);
                 """
             )
 
@@ -92,7 +133,13 @@ def create_alanoffer_blueprint(data_root: str | Path) -> Blueprint:
         return re.sub(r"\s+", " ", text).strip()[:max_len]
 
     def norm(value: Any) -> str:
-        return clean(value, 800).replace("ي", "ی").replace("ك", "ک").lower()
+        return (
+            clean(value, 800)
+            .replace("ي", "ی")
+            .replace("ك", "ک")
+            .replace("ۀ", "ه")
+            .lower()
+        )
 
     def new_id(prefix: str) -> str:
         return f"{prefix}_{int(time.time() * 1000)}_{secrets.token_hex(5)}"
@@ -105,43 +152,34 @@ def create_alanoffer_blueprint(data_root: str | Path) -> Blueprint:
         digits = re.sub(r"\D+", "", normalize_digits(value))
         return 10 <= len(digits) <= 15
 
-    def language(text: str) -> str:
-        latin = sum(1 for ch in text if "a" <= ch.lower() <= "z")
-        rtl = sum(1 for ch in text if "\u0600" <= ch <= "\u06ff")
-        return "en" if latin > rtl * 1.4 and latin >= 3 else "fa"
+    def supported_city(value: Any) -> bool:
+        city = norm(value).replace("‌", " ")
+        capitals = {norm(x).replace("‌", " ") for x in PROVINCE_CAPITALS}
+        return city in capitals
 
-    def infer_role(text: str) -> str:
-        n = norm(text)
-        seller_words = [
-            "کسب و کار", "کسب‌وکار", "فروشگاه", "مغازه", "رستوران دارم",
-            "کلینیک دارم", "فروشنده", "می فروشم", "می‌فروشم",
-            "business", "seller", "shop owner", "merchant",
-        ]
-        buyer_words = [
-            "میخوام", "می خوام", "می‌خوام", "لازم دارم", "دنبال",
-            "need", "want", "looking for", "buyer",
-        ]
-        if any(word in n for word in seller_words):
-            return "seller"
-        if any(word in n for word in buyer_words):
-            return "buyer"
-        return "unknown"
-
-    def flow(role: str):
-        return SELLER_FLOW if role == "seller" else BUYER_FLOW
-
-    def next_question(role: str, data: dict[str, Any], lang: str) -> tuple[str | None, str]:
-        for key, fa, en in flow(role):
-            if not clean(data.get(key), 600):
-                data["_awaiting"] = key
-                return key, en if lang == "en" else fa
+    def next_question(data: dict[str, Any]) -> dict[str, Any] | None:
+        for item in BUYER_FLOW:
+            if not clean(data.get(item["key"]), 700):
+                data["_awaiting"] = item["key"]
+                return item
         data.pop("_awaiting", None)
-        return None, ""
+        return None
 
-    def load_session(session_id: str) -> tuple[str, dict[str, Any], bool] | None:
+    def question_payload(item: dict[str, Any]) -> dict[str, Any]:
+        reply = item["question"]
+        if item.get("hint"):
+            reply += "\n" + item["hint"]
+        return {
+            "reply": reply,
+            "field": item["key"],
+            "options": item.get("options", []),
+            "multi": bool(item.get("multi")),
+        }
+
+    def load_session(session_id: str) -> tuple[dict[str, Any], bool] | None:
         with connect() as con:
             row = con.execute(
-                "SELECT role,data_json,ready FROM chat_sessions WHERE id=?",
+                "SELECT data_json,ready FROM chat_sessions WHERE id=?",
                 (session_id,),
             ).fetchone()
         if not row:
@@ -152,19 +190,41 @@ def create_alanoffer_blueprint(data_root: str | Path) -> Blueprint:
                 data = {}
         except Exception:
             data = {}
-        return clean(row["role"], 20) or "unknown", data, bool(row["ready"])
+        return data, bool(row["ready"])
 
-    def save_session(session_id: str, role: str, data: dict[str, Any], ready: bool) -> None:
+    def save_session(session_id: str, data: dict[str, Any], ready: bool) -> None:
         now = int(time.time() * 1000)
         payload = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
         with connect() as con:
             con.execute(
-                "UPDATE chat_sessions SET role=?,data_json=?,ready=?,updated_at=? WHERE id=?",
-                (role, payload, int(ready), now, session_id),
+                "UPDATE chat_sessions SET role='buyer',data_json=?,ready=?,updated_at=? WHERE id=?",
+                (payload, int(ready), now, session_id),
             )
 
-    def save_record(session_id: str, role: str, data: dict[str, Any]) -> None:
+    def priority_tags(value: Any) -> list[str]:
+        n = norm(value)
+        tags: list[str] = []
+        mapping = [
+            ("price", ["قیمت", "ارزان", "هزینه"]),
+            ("quality", ["کیفیت", "اعتبار", "بهترین"]),
+            ("speed", ["سرعت", "سریع", "زود"]),
+            ("installment", ["اقساط", "قسط"]),
+            ("distance", ["نزدیک", "نزدیکی", "مسافت"]),
+        ]
+        for tag, words in mapping:
+            if any(word in n for word in words):
+                tags.append(tag)
+        return tags[:3]
+
+    def save_record(session_id: str, data: dict[str, Any]) -> None:
         public_data = {k: v for k, v in data.items() if not k.startswith("_")}
+        public_data["match_profile"] = {
+            "service": clean(data.get("service"), 180),
+            "city": clean(data.get("city"), 80),
+            "priority_tags": priority_tags(data.get("priorities")),
+            "case_size": clean(data.get("case_size"), 160),
+            "wait": clean(data.get("wait"), 100),
+        }
         with connect() as con:
             con.execute(
                 """
@@ -172,28 +232,23 @@ def create_alanoffer_blueprint(data_root: str | Path) -> Blueprint:
                 VALUES(?,?,?,?,?,?)
                 """,
                 (
-                    new_id("cr"), session_id, role,
+                    new_id("drq"),
+                    session_id,
+                    "buyer",
                     json.dumps(public_data, ensure_ascii=False),
-                    "new", int(time.time() * 1000),
+                    "needs_provider_search",
+                    int(time.time() * 1000),
                 ),
             )
 
-    def summary(role: str, data: dict[str, Any]) -> str:
-        if role == "seller":
-            parts = [
-                f"کسب‌وکار: {clean(data.get('business_name'), 120)}",
-                f"آفر: {clean(data.get('offer'), 180)}",
-                f"مکان: {clean(data.get('city'), 80)}، {clean(data.get('area'), 100)}",
-                f"قیمت: {clean(data.get('price'), 120)}",
-                f"ظرفیت: {clean(data.get('availability'), 160)}",
-            ]
-        else:
-            parts = [
-                f"درخواست: {clean(data.get('need'), 180)}",
-                f"مکان: {clean(data.get('city'), 80)}، {clean(data.get('area'), 100)}",
-                f"مهلت: {clean(data.get('wait'), 100)}",
-            ]
-        return " | ".join(parts)
+    def summary(data: dict[str, Any]) -> str:
+        return (
+            f"{clean(data.get('service'), 120)} | "
+            f"{clean(data.get('city'), 70)} | "
+            f"اولویت: {clean(data.get('priorities'), 120)} | "
+            f"حجم: {clean(data.get('case_size'), 120)} | "
+            f"مهلت: {clean(data.get('wait'), 90)}"
+        )
 
     @bp.after_request
     def cors(resp):
@@ -217,11 +272,11 @@ def create_alanoffer_blueprint(data_root: str | Path) -> Blueprint:
             records = con.execute("SELECT COUNT(*) AS n FROM chat_records").fetchone()["n"]
         return jsonify(
             ok=True,
-            service="alanoffer-chat",
+            service="drlinq-request-intake",
             version=VERSION,
-            mode="structured-mvp",
+            mode="demand-first-mvp",
             ai=False,
-            scope="iran",
+            coverage="iran-province-capitals",
             db=True,
             records=records,
             time=time.time(),
@@ -229,83 +284,101 @@ def create_alanoffer_blueprint(data_root: str | Path) -> Blueprint:
 
     @bp.post("/api/chat/start")
     def chat_start():
-        body = request.get_json(silent=True) or {}
-        role = clean(body.get("role"), 20).lower()
-        if role not in {"buyer", "seller"}:
-            role = "unknown"
         session_id = new_id("cs")
         now = int(time.time() * 1000)
         data: dict[str, Any] = {}
         with connect() as con:
-            # Sessions are temporary; records remain as the structured MVP data.
             con.execute("DELETE FROM chat_sessions WHERE updated_at<?", (now - 30 * 24 * 3600 * 1000,))
             con.execute(
                 "INSERT INTO chat_sessions(id,role,data_json,ready,created_at,updated_at) VALUES(?,?,?,?,?,?)",
-                (session_id, role, "{}", 0, now, now),
+                (session_id, "buyer", "{}", 0, now, now),
             )
-        if role == "unknown":
-            reply = "دنبال چیزی هستی یا کسب‌وکار داری؟ هرطور راحتی بگو."
-        else:
-            _, reply = next_question(role, data, "fa")
-            save_session(session_id, role, data, False)
-        return jsonify(ok=True, sessionId=session_id, role=role, reply=reply, ready=False)
+        item = next_question(data)
+        save_session(session_id, data, False)
+        payload = question_payload(item or BUYER_FLOW[0])
+        return jsonify(ok=True, sessionId=session_id, role="buyer", ready=False, **payload)
 
     @bp.post("/api/chat/message")
     def chat_message():
         body = request.get_json(silent=True) or {}
         session_id = clean(body.get("sessionId"), 120)
         text = clean(body.get("text"), 1200)
-        supplied_role = clean(body.get("role"), 20).lower()
         if not session_id or not text:
             return jsonify(error="missing_session_or_text"), 400
 
         loaded = load_session(session_id)
         if not loaded:
             return jsonify(error="session_not_found"), 404
-        role, data, was_ready = loaded
-        lang = language(text)
+        data, was_ready = loaded
 
         if was_ready:
-            done_text = "This request is already complete. Start a fresh chat for another request." if lang == "en" else "این درخواست قبلاً کامل شده. برای درخواست تازه، «شروع تازه» را بزن."
-            return jsonify(ok=True, sessionId=session_id, role=role, reply=done_text, ready=True, summary=summary(role, data))
+            return jsonify(
+                ok=True,
+                sessionId=session_id,
+                role="buyer",
+                reply="این درخواست قبلاً ثبت شده. برای درخواست جدید «شروع تازه» رو بزن.",
+                ready=True,
+                summary=summary(data),
+            )
 
-        if supplied_role in {"buyer", "seller"}:
-            role = supplied_role
+        awaiting = clean(data.get("_awaiting"), 40)
+        valid_keys = {item["key"] for item in BUYER_FLOW}
+        if awaiting not in valid_keys:
+            item = next_question(data)
+            if item:
+                save_session(session_id, data, False)
+                return jsonify(ok=True, sessionId=session_id, role="buyer", ready=False, **question_payload(item))
+            awaiting = ""
 
-        if role not in {"buyer", "seller"}:
-            role = infer_role(text)
-            if role == "unknown":
-                reply = "Are you looking for something, or do you own a business?" if lang == "en" else "فقط مشخص کن: دنبال چیزی هستی یا کسب‌وکار داری؟"
-                return jsonify(ok=True, sessionId=session_id, role="unknown", reply=reply, ready=False)
-            if role == "buyer":
-                data["need"] = text
-            else:
-                data["opening"] = text
-        else:
-            awaiting = clean(data.get("_awaiting"), 40)
-            valid_keys = {item[0] for item in flow(role)}
-            if awaiting in valid_keys:
-                if awaiting == "contact" and not valid_contact(text):
-                    retry = "Please send a valid mobile or WhatsApp number." if lang == "en" else "یک شماره موبایل یا واتساپ معتبر بفرست؛ فقط شماره کافیه."
-                    return jsonify(ok=True, sessionId=session_id, role=role, reply=retry, ready=False)
-                data[awaiting] = text
-                data.pop("_awaiting", None)
-            elif role == "buyer" and not data.get("need"):
-                data["need"] = text
-            elif role == "seller" and not data.get("offer"):
-                data["offer"] = text
-            else:
-                notes = (clean(data.get("notes"), 1000) + " | " + text).strip(" |")
-                data["notes"] = notes[:1200]
+        if awaiting == "contact" and not valid_contact(text):
+            return jsonify(
+                ok=True,
+                sessionId=session_id,
+                role="buyer",
+                reply="یک شماره موبایل یا واتساپ معتبر بفرست؛ فقط شماره کافیه.",
+                field="contact",
+                options=[],
+                multi=False,
+                ready=False,
+            )
 
-        key, question = next_question(role, data, lang)
-        if key is not None:
-            save_session(session_id, role, data, False)
-            return jsonify(ok=True, sessionId=session_id, role=role, reply=question, ready=False)
+        if awaiting == "city" and not supported_city(text):
+            return jsonify(
+                ok=True,
+                sessionId=session_id,
+                role="buyer",
+                reply="فعلاً فقط مراکز استان‌ها رو پوشش می‌دیم. اسم مرکز استان رو بنویس؛ مثلاً اهواز، شیراز یا تهران.",
+                field="city",
+                options=[],
+                multi=False,
+                ready=False,
+            )
 
-        save_record(session_id, role, data)
-        save_session(session_id, role, data, True)
-        reply = "Saved. This MVP now stores the structured request; real matching and notifications are the next step." if lang == "en" else "ثبت شد. اطلاعات ساختاریافته ذخیره شد؛ مرحله بعد Match و اعلان واقعی است."
-        return jsonify(ok=True, sessionId=session_id, role=role, reply=reply, ready=True, summary=summary(role, data))
+        if awaiting:
+            data[awaiting] = text
+            data.pop("_awaiting", None)
+
+        item = next_question(data)
+        if item:
+            save_session(session_id, data, False)
+            return jsonify(ok=True, sessionId=session_id, role="buyer", ready=False, **question_payload(item))
+
+        save_record(session_id, data)
+        save_session(session_id, data, True)
+        return jsonify(
+            ok=True,
+            sessionId=session_id,
+            role="buyer",
+            reply=(
+                "درخواستت ثبت شد. ما بر اساس شهر، نوع درمان و اولویت‌هات سراغ درمانگرهای مناسب می‌ریم. "
+                "اگر گزینه‌ای برای بررسی درخواستت اعلام آمادگی کرد، بهت خبر می‌دیم."
+            ),
+            ready=True,
+            summary=summary(data),
+            field=None,
+            options=[],
+            multi=False,
+            status="needs_provider_search",
+        )
 
     return bp
