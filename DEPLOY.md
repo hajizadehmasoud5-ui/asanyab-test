@@ -1,22 +1,16 @@
-# AlanOffer / Cloudiva deploy branch
+# DrLinq / Cloudiva deploy branch
 
-This branch is the runtime source for the existing Python service.
+This branch is now dedicated to the DrLinq demand-first backend only.
 
-## Keep outside Git
-Runtime data and secrets must stay outside version control:
+Runtime files:
+- `server.py` — minimal Flask entrypoint
+- `alanoffer_blueprint.py` — DrLinq API/admin backend v0.4.0
+- `requirements.txt` — Flask only
+- `start.sh` — service start command
+
+Keep runtime data and secrets outside Git:
 - `/app/data/`
-- `AVALAI_API_KEY`
-- `LIPSYNC_API_TOKEN`
-- `ALANOFFER_ADMIN_TOKEN`
-- `ALANOFFER_ADMIN_SETUP_SECRET`
-- any `.env` file
+- `DRLINQ_ADMIN_TOKEN`
+- `ALANOFFER_DB_PATH`
 
-## Runtime files
-- `myapp.py` — existing Content Studio + video service
-- `alanoffer_blueprint.py` — AlanOffer API/admin/MVP backend
-- `requirements.txt`
-- `start.sh`
-- `cleanup_server.sh`
-
-## Important migration rule
-Never run a blind `rm -rf $(ls -A)` on `/app`. Preserve `/app/data` before any Git migration. The cleanup script only removes known old backups/installers and Python caches.
+Old Asanyab/AlanOffer chat and video-studio runtime files were removed from this branch.
