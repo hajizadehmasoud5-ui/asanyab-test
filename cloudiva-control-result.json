@@ -3,7 +3,7 @@
   "action": "cloudiva_cli_discovery",
   "workflow_status": "success",
   "detail": "",
-  "run_id": "32399539271",
-  "commit_sha": "e0cdc8b28f13a460fe1ef354235bced1c2ce45bf",
-  "checked_at_utc": "2026-08-20T17:47:32.672569+00:00"
+  "run_id": "32399582239",
+  "commit_sha": "a5029e9fae3a151b0e059ee60ae35bc8caf92aa2",
+  "checked_at_utc": "2026-08-20T17:48:00.874089+00:00"
 }
