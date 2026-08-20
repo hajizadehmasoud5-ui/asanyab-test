@@ -14,9 +14,16 @@ permissions:
 jobs:
   control:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: control
+
+      - uses: actions/checkout@v4
+        with:
+          ref: cloudiva-deploy
+          path: deploy-src
 
       - uses: actions/setup-node@v4
         with:
@@ -27,6 +34,7 @@ jobs:
 
       - name: Read requested action
         id: ctl
+        working-directory: control
         run: |
           set -euo pipefail
           python - <<'PY' >> "$GITHUB_OUTPUT"
@@ -34,8 +42,8 @@ jobs:
           d=json.load(open('chabokan-control.json',encoding='utf-8'))
           action=d.get('action','status')
           service=d.get('service','python-0jatcc')
-          if action not in {'status','restart','start'}:
-              raise SystemExit(f'Unsupported or locked action: {action}')
+          if action not in {'status','restart','start','deploy'}:
+              raise SystemExit(f'Unsupported action: {action}')
           if service != 'python-0jatcc':
               raise SystemExit('Only the DrLinq python service is allowed')
           print(f'action={action}')
@@ -67,6 +75,16 @@ jobs:
             exit 5
           fi
 
+      - name: Validate deploy source
+        if: steps.ctl.outputs.action == 'deploy'
+        run: |
+          set -euo pipefail
+          test -f deploy-src/server.py
+          test -f deploy-src/alanoffer_blueprint.py
+          test -f deploy-src/requirements.txt
+          test -f deploy-src/start.sh
+          grep -Fq "version='0.4.0'" deploy-src/alanoffer_blueprint.py || grep -Fq "VERSION='0.4.0'" deploy-src/alanoffer_blueprint.py
+
       - name: Run requested control action silently
         env:
           ACTION: ${{ steps.ctl.outputs.action }}
@@ -91,12 +109,20 @@ jobs:
               fi
               sleep 8
               ;;
+            deploy)
+              if ! diva deploy --path deploy-src --service "$TARGET" >/tmp/diva-action.txt 2>&1; then
+                echo 'deploy_failed' > /tmp/control_failure
+                tail -n 20 /tmp/diva-action.txt || true
+                exit 9
+              fi
+              sleep 15
+              ;;
           esac
 
       - name: Verify live DrLinq backend silently
         run: |
           set -euo pipefail
-          if ! curl -fsSL --retry 5 --retry-delay 3 https://python-0jatcc.cldv.dev/alanoffer/api/chat/health -o /tmp/health.json; then
+          if ! curl -fsSL --retry 10 --retry-delay 4 https://python-0jatcc.cldv.dev/alanoffer/api/chat/health -o /tmp/health.json; then
             echo 'backend_health_failed' > /tmp/control_failure
             exit 8
           fi
@@ -115,6 +141,7 @@ jobs:
           COMMIT_SHA: ${{ github.sha }}
           ACTION: ${{ steps.ctl.outputs.action }}
           TARGET: ${{ steps.ctl.outputs.service }}
+        working-directory: control
         run: |
           python - <<'PY'
           import json, os, datetime
