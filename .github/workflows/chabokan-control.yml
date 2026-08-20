@@ -20,70 +20,29 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
-      - name: Install official Chabokan CLI
-        run: npm install -g @chabokan.net/cli
+      - name: Install official Cloudiva CLI
+        run: npm install -g @cloudiva.net/cli
 
-      - name: Login with API token
+      - name: Login with Cloudiva API token
         env:
           CHABOKAN_TOKEN: ${{ secrets.CHABOKAN_TOKEN }}
         run: |
           set -euo pipefail
           test -n "$CHABOKAN_TOKEN" || { echo 'missing_token' > /tmp/control_failure; exit 2; }
-          chabok login --token "$CHABOKAN_TOKEN"
+          diva login -t "$CHABOKAN_TOKEN"
 
-      - name: Read requested action
-        id: ctl
+      - name: Discover safe Cloudiva commands
         run: |
-          python - <<'PY' >> "$GITHUB_OUTPUT"
-          import json
-          d=json.load(open('chabokan-control.json',encoding='utf-8'))
-          action=d.get('action','status')
-          service=d.get('service','python-0jatcc')
-          if action not in {'status','logs','restart','start'}:
-              raise SystemExit(f'Unsupported action: {action}')
-          print(f'action={action}')
-          print(f'service={service}')
-          PY
-
-      - name: Verify target service is visible
-        env:
-          TARGET: ${{ steps.ctl.outputs.service }}
-        run: |
-          set -euo pipefail
-          SERVICES="$(chabok service list 2>&1)"
-          printf '%s\n' "$SERVICES"
-          if ! grep -Fq "$TARGET" <<< "$SERVICES"; then
-            echo 'target_service_not_visible_in_token_account' > /tmp/control_failure
-            echo "Target service $TARGET is not visible to this API token."
-            exit 4
-          fi
-
-      - name: Run requested control action
-        env:
-          ACTION: ${{ steps.ctl.outputs.action }}
-          TARGET: ${{ steps.ctl.outputs.service }}
-        run: |
-          set -euo pipefail
-          case "$ACTION" in
-            status)
-              chabok service list
-              ;;
-            logs)
-              chabok service logs --service "$TARGET" | tail -n 150
-              ;;
-            restart)
-              chabok service restart --service "$TARGET"
-              sleep 8
-              chabok service logs --service "$TARGET" | tail -n 120
-              ;;
-            start)
-              chabok service start --service "$TARGET"
-              sleep 8
-              chabok service logs --service "$TARGET" | tail -n 120
-              ;;
-          esac
+          set +e
+          echo '--- diva --help ---'
+          diva --help
+          echo '--- diva service --help ---'
+          diva service --help
+          echo '--- diva deploy --help ---'
+          diva deploy --help
+          exit 0
 
       - name: Verify live DrLinq backend
         run: |
@@ -111,7 +70,7 @@ jobs:
               pass
           out={
               'service': req.get('service','python-0jatcc'),
-              'action': req.get('action','status'),
+              'action': 'cloudiva_cli_discovery',
               'workflow_status': os.environ.get('JOB_STATUS','unknown'),
               'detail': detail,
               'run_id': os.environ.get('RUN_ID',''),
