@@ -8,17 +8,21 @@ on:
 
 permissions:
   actions: write
-  contents: read
+  contents: write
 
 jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Delete pre-hardening Cloudiva/Chabokan test runs
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          ok=true
+          : > /tmp/codes.txt
           for id in \
             32398521389 \
             32398612732 \
@@ -33,9 +37,32 @@ jobs:
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
               "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${id}")
-            if [ "$code" != "204" ] && [ "$code" != "404" ]; then
-              echo "cleanup_failed_for_run_${id}_http_${code}"
-              exit 1
-            fi
+            printf '%s:%s\n' "$id" "$code" >> /tmp/codes.txt
+            if [ "$code" != "204" ] && [ "$code" != "404" ]; then ok=false; fi
           done
-          echo 'old_control_test_runs_cleaned'
+          if [ "$ok" != true ]; then
+            echo 'cleanup_failed' > /tmp/cleanup_status
+          else
+            echo 'cleanup_success' > /tmp/cleanup_status
+          fi
+
+      - name: Record sanitized cleanup result
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          status=open('/tmp/cleanup_status').read().strip()
+          codes={}
+          for line in open('/tmp/codes.txt'):
+              rid,code=line.strip().split(':',1)
+              codes[rid]=code
+          out={'status':status,'http_codes':codes}
+          with open('control-cleanup-result.json','w',encoding='utf-8') as f:
+              json.dump(out,f,indent=2)
+              f.write('\n')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add control-cleanup-result.json
+          git diff --cached --quiet || git commit -m 'Record control cleanup result'
+          git push >/dev/null 2>&1
