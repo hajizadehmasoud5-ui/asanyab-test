@@ -1,9 +1,9 @@
 {
   "service": "python-0jatcc",
-  "action": "logs",
-  "workflow_status": "failure",
-  "detail": "target_service_not_visible_in_token_account",
-  "run_id": "32398978309",
-  "commit_sha": "1c9ede0caea0090081f932271d383e3cf2c700e1",
-  "checked_at_utc": "2026-08-20T17:41:29.952171+00:00"
+  "action": "cloudiva_cli_discovery",
+  "workflow_status": "success",
+  "detail": "",
+  "run_id": "32399539271",
+  "commit_sha": "e0cdc8b28f13a460fe1ef354235bced1c2ce45bf",
+  "checked_at_utc": "2026-08-20T17:47:32.672569+00:00"
 }
