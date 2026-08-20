@@ -23,34 +23,89 @@ jobs:
           node-version: '24'
 
       - name: Install official Cloudiva CLI
-        run: npm install -g @cloudiva.net/cli
+        run: npm install -g @cloudiva.net/cli >/dev/null 2>&1
 
-      - name: Login with Cloudiva API token
+      - name: Read requested action
+        id: ctl
+        run: |
+          set -euo pipefail
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          d=json.load(open('chabokan-control.json',encoding='utf-8'))
+          action=d.get('action','status')
+          service=d.get('service','python-0jatcc')
+          if action not in {'status','restart','start'}:
+              raise SystemExit(f'Unsupported or locked action: {action}')
+          if service != 'python-0jatcc':
+              raise SystemExit('Only the DrLinq python service is allowed')
+          print(f'action={action}')
+          print(f'service={service}')
+          PY
+
+      - name: Login to Cloudiva silently
         env:
-          CHABOKAN_TOKEN: ${{ secrets.CHABOKAN_TOKEN }}
+          CLOUDIVA_TOKEN: ${{ secrets.CHABOKAN_TOKEN }}
         run: |
           set -euo pipefail
-          test -n "$CHABOKAN_TOKEN" || { echo 'missing_token' > /tmp/control_failure; exit 2; }
-          diva login -t "$CHABOKAN_TOKEN"
+          test -n "$CLOUDIVA_TOKEN" || { echo 'missing_token' > /tmp/control_failure; exit 2; }
+          if ! diva login -t "$CLOUDIVA_TOKEN" >/tmp/diva-login.txt 2>&1; then
+            echo 'cloudiva_login_failed' > /tmp/control_failure
+            exit 3
+          fi
 
-      - name: List visible services and inspect safe command syntax
-        run: |
-          set +e
-          echo '--- diva service list ---'
-          diva service list
-          echo '--- diva service logs --help ---'
-          diva service logs --help
-          echo '--- diva service restart --help ---'
-          diva service restart --help
-          echo '--- diva service start --help ---'
-          diva service start --help
-          exit 0
-
-      - name: Verify live DrLinq backend
+      - name: Verify target service access without exposing account data
+        env:
+          TARGET: ${{ steps.ctl.outputs.service }}
         run: |
           set -euo pipefail
-          curl -fsSL --retry 5 --retry-delay 3 https://python-0jatcc.cldv.dev/alanoffer/api/chat/health
-          echo
+          if ! diva service list >/tmp/diva-services.txt 2>&1; then
+            echo 'service_list_failed' > /tmp/control_failure
+            exit 4
+          fi
+          if ! grep -Fq "$TARGET" /tmp/diva-services.txt; then
+            echo 'target_service_not_visible' > /tmp/control_failure
+            exit 5
+          fi
+
+      - name: Run requested control action silently
+        env:
+          ACTION: ${{ steps.ctl.outputs.action }}
+          TARGET: ${{ steps.ctl.outputs.service }}
+        run: |
+          set -euo pipefail
+          case "$ACTION" in
+            status)
+              :
+              ;;
+            restart)
+              if ! diva service restart -s "$TARGET" >/tmp/diva-action.txt 2>&1; then
+                echo 'restart_failed' > /tmp/control_failure
+                exit 6
+              fi
+              sleep 8
+              ;;
+            start)
+              if ! diva service start -s "$TARGET" >/tmp/diva-action.txt 2>&1; then
+                echo 'start_failed' > /tmp/control_failure
+                exit 7
+              fi
+              sleep 8
+              ;;
+          esac
+
+      - name: Verify live DrLinq backend silently
+        run: |
+          set -euo pipefail
+          if ! curl -fsSL --retry 5 --retry-delay 3 https://python-0jatcc.cldv.dev/alanoffer/api/chat/health -o /tmp/health.json; then
+            echo 'backend_health_failed' > /tmp/control_failure
+            exit 8
+          fi
+          python - <<'PY'
+          import json
+          d=json.load(open('/tmp/health.json',encoding='utf-8'))
+          if d.get('ok') is not True:
+              raise SystemExit('backend_not_ok')
+          PY
 
       - name: Write sanitized control result
         if: always()
@@ -58,23 +113,28 @@ jobs:
           JOB_STATUS: ${{ job.status }}
           RUN_ID: ${{ github.run_id }}
           COMMIT_SHA: ${{ github.sha }}
+          ACTION: ${{ steps.ctl.outputs.action }}
+          TARGET: ${{ steps.ctl.outputs.service }}
         run: |
           python - <<'PY'
           import json, os, datetime
-          try:
-              req=json.load(open('chabokan-control.json',encoding='utf-8'))
-          except Exception:
-              req={}
           detail=''
           try:
               detail=open('/tmp/control_failure',encoding='utf-8').read().strip()
           except Exception:
               pass
+          health={}
+          try:
+              health=json.load(open('/tmp/health.json',encoding='utf-8'))
+          except Exception:
+              pass
           out={
-              'service': req.get('service','python-0jatcc'),
-              'action': 'cloudiva_service_discovery',
+              'service': os.environ.get('TARGET') or 'python-0jatcc',
+              'action': os.environ.get('ACTION') or 'unknown',
               'workflow_status': os.environ.get('JOB_STATUS','unknown'),
               'detail': detail,
+              'backend_ok': health.get('ok') is True,
+              'backend_version': health.get('version'),
               'run_id': os.environ.get('RUN_ID',''),
               'commit_sha': os.environ.get('COMMIT_SHA',''),
               'checked_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -87,4 +147,4 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add cloudiva-control-result.json
           git diff --cached --quiet || git commit -m 'Record Cloudiva control result'
-          git push
+          git push >/dev/null 2>&1
