@@ -1,0 +1,10 @@
+{
+  "service": "python-0jatcc",
+  "persistent_path": "/data",
+  "persisted_after_restart": true,
+  "backend_ok": true,
+  "backend_version": "0.4.0",
+  "request_count_before": 0,
+  "request_count_after": 1,
+  "checked_at_utc": "2026-08-20T18:20:41.350401+00:00"
+}
