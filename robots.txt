@@ -1,4 +1,15 @@
 User-agent: *
 Allow: /
+Disallow: /admin.html
+Disallow: /map-setup.html
+Disallow: /import-neshan.html
+Disallow: /osm-import.html
+Disallow: /patient-intake-test.html
+Disallow: /mvp.html
+Disallow: /drlinq-entry-v1.html
+Disallow: /drlinq-patient-flow-v2.html
+Disallow: /drlinq-patient-flow-v2-realimg.html
+Disallow: /drlinq-patient-flow-v2-realimg2.html
+Disallow: /skin-flow.html
 
 Sitemap: https://drlinq.ir/sitemap.xml
