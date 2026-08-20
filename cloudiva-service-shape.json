@@ -1,0 +1,16 @@
+{
+  "service_found": true,
+  "shape": {
+    "checkout_price": "int",
+    "checkout_type": "str",
+    "cpu": "float",
+    "disk": "float",
+    "due_date": "NoneType",
+    "main_name": "str",
+    "platform": {
+      "name": "str"
+    },
+    "ram": "float",
+    "status": "str"
+  }
+}
