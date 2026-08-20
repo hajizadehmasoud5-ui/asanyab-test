@@ -1,0 +1,69 @@
+name: Cloudiva readonly endpoint probe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cloudiva-readonly-probe.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe read-only service endpoints
+        env:
+          CLOU_TOKEN: ${{ secrets.CHABOKAN_TOKEN }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request, urllib.error
+          base='https://apihub.cloudiva.net/fa/api/v1/'
+          token=os.environ['CLOU_TOKEN']
+          paths=[
+            'services/python-0jatcc/',
+            'services/python-0jatcc/files/',
+            'services/python-0jatcc/file-manager/',
+            'services/python-0jatcc/filemanager/',
+            'services/python-0jatcc/ftp/',
+            'services/python-0jatcc/env/',
+            'services/python-0jatcc/environment/',
+            'services/python-0jatcc/persistent-paths/',
+            'services/python-0jatcc/permanent-paths/',
+            'services/python-0jatcc/volumes/',
+            'services/python-0jatcc/storage/',
+          ]
+          def shape(v,depth=0):
+            if depth>2:return type(v).__name__
+            if isinstance(v,dict):return {k:shape(v[k],depth+1) for k in sorted(v)}
+            if isinstance(v,list):return [shape(v[0],depth+1)] if v else []
+            return type(v).__name__
+          out={}
+          for p in paths:
+            req=urllib.request.Request(base+p,headers={'Authorization':'Token '+token,'Accept':'application/json'})
+            try:
+              with urllib.request.urlopen(req,timeout=15) as r:
+                raw=r.read(2_000_000)
+                status=r.status
+            except urllib.error.HTTPError as e:
+              status=e.code; raw=e.read(200_000)
+            except Exception as e:
+              out[p]={'status':'network_error','type':type(e).__name__}; continue
+            entry={'status':status}
+            try:
+              data=json.loads(raw.decode('utf-8','ignore'))
+              entry['shape']=shape(data)
+            except Exception:
+              entry['body_type']='non_json'
+            out[p]=entry
+          open('cloudiva-readonly-probe.json','w',encoding='utf-8').write(json.dumps(out,indent=2,ensure_ascii=False)+'\n')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add cloudiva-readonly-probe.json
+          git diff --cached --quiet || git commit -m 'Record sanitized Cloudiva readonly probe'
+          git push >/dev/null 2>&1
