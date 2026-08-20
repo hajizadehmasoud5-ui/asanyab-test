@@ -1,5 +1,5 @@
 {
   "service": "python-0jatcc",
-  "action": "status",
-  "requested_at": "2026-08-20T21:05:00+03:30"
+  "action": "logs",
+  "requested_at": "2026-08-20T21:07:00+03:30"
 }
