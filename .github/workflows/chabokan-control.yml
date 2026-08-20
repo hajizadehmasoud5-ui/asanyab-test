@@ -33,15 +33,17 @@ jobs:
           test -n "$CHABOKAN_TOKEN" || { echo 'missing_token' > /tmp/control_failure; exit 2; }
           diva login -t "$CHABOKAN_TOKEN"
 
-      - name: Discover safe Cloudiva commands
+      - name: List visible services and inspect safe command syntax
         run: |
           set +e
-          echo '--- diva --help ---'
-          diva --help
-          echo '--- diva service --help ---'
-          diva service --help
-          echo '--- diva deploy --help ---'
-          diva deploy --help
+          echo '--- diva service list ---'
+          diva service list
+          echo '--- diva service logs --help ---'
+          diva service logs --help
+          echo '--- diva service restart --help ---'
+          diva service restart --help
+          echo '--- diva service start --help ---'
+          diva service start --help
           exit 0
 
       - name: Verify live DrLinq backend
@@ -70,7 +72,7 @@ jobs:
               pass
           out={
               'service': req.get('service','python-0jatcc'),
-              'action': 'cloudiva_cli_discovery',
+              'action': 'cloudiva_service_discovery',
               'workflow_status': os.environ.get('JOB_STATUS','unknown'),
               'detail': detail,
               'run_id': os.environ.get('RUN_ID',''),
