@@ -1,0 +1,46 @@
+name: DrLinq site health
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '17 */6 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check homepage
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 --retry-delay 2 https://drlinq.ir/ -o /tmp/home.html
+          grep -F '<link rel="canonical" href="https://drlinq.ir/">' /tmp/home.html
+          grep -F '<meta name="description"' /tmp/home.html
+
+      - name: Check robots
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 --retry-delay 2 https://drlinq.ir/robots.txt -o /tmp/robots.txt
+          grep -F 'Sitemap: https://drlinq.ir/sitemap.xml' /tmp/robots.txt
+
+      - name: Check sitemap
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 --retry-delay 2 https://drlinq.ir/sitemap.xml -o /tmp/sitemap.xml
+          grep -F '<loc>https://drlinq.ir/</loc>' /tmp/sitemap.xml
+
+      - name: Check backend health
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 --retry-delay 2 https://python-0jatcc.cldv.dev/alanoffer/api/chat/health -o /tmp/backend.json
+          python - <<'PY'
+          import json
+          d=json.load(open('/tmp/backend.json', encoding='utf-8'))
+          assert d.get('ok') is True, d
+          print('backend ok:', d)
+          PY
