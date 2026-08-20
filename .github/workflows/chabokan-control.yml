@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   control:
@@ -83,3 +83,34 @@ jobs:
           set -euo pipefail
           curl -fsSL --retry 5 --retry-delay 3 https://python-0jatcc.cldv.dev/alanoffer/api/chat/health
           echo
+
+      - name: Write sanitized control result
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          RUN_ID: ${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json, os, datetime
+          try:
+              req=json.load(open('chabokan-control.json',encoding='utf-8'))
+          except Exception:
+              req={}
+          out={
+              'service': req.get('service','python-0jatcc'),
+              'action': req.get('action','status'),
+              'workflow_status': os.environ.get('JOB_STATUS','unknown'),
+              'run_id': os.environ.get('RUN_ID',''),
+              'commit_sha': os.environ.get('COMMIT_SHA',''),
+              'checked_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat()
+          }
+          with open('cloudiva-control-result.json','w',encoding='utf-8') as f:
+              json.dump(out,f,ensure_ascii=False,indent=2)
+              f.write('\n')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add cloudiva-control-result.json
+          git diff --cached --quiet || git commit -m 'Record Cloudiva control result'
+          git push
