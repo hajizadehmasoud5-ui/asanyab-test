@@ -1,0 +1,57 @@
+name: Cloudiva safe introspection
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cloudiva-introspect.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install and login
+        env:
+          CLOU_TOKEN: ${{ secrets.CHABOKAN_TOKEN }}
+        run: |
+          set -euo pipefail
+          npm install -g @cloudiva.net/cli >/dev/null 2>&1
+          diva login -t "$CLOU_TOKEN" >/dev/null
+
+      - name: Inspect CLI package safely
+        run: |
+          set -euo pipefail
+          ROOT="$(npm root -g)/@cloudiva.net/cli"
+          python - "$ROOT" <<'PY'
+          import os,re,sys,json
+          root=sys.argv[1]
+          urls=set(); hints=set()
+          for dp,_,fs in os.walk(root):
+              for fn in fs:
+                  if not fn.endswith(('.js','.mjs','.cjs','.json','.ts')): continue
+                  p=os.path.join(dp,fn)
+                  try:s=open(p,encoding='utf-8',errors='ignore').read()
+                  except:continue
+                  for u in re.findall(r'https?://[^\"\'\s)]+',s):
+                      if 'cloudiva' in u.lower() or 'chabokan' in u.lower(): urls.add(u[:250])
+                  low=s.lower()
+                  if any(k in low for k in ('ftp','file manager','filemanager','persistent','volume','storage')):
+                      rel=os.path.relpath(p,root)
+                      if len(hints)<80:hints.add(rel)
+          out={'service':'python-0jatcc','cli_urls':sorted(urls)[:40],'hint_files':sorted(hints)[:80]}
+          open('cloudiva-introspection.json','w').write(json.dumps(out,indent=2,ensure_ascii=False)+'\n')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add cloudiva-introspection.json
+          git diff --cached --quiet || git commit -m 'Record sanitized Cloudiva CLI introspection'
+          git push >/dev/null 2>&1
