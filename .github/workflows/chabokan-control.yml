@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'chabokan-control.json'
+      - '.github/workflows/chabokan-control.yml'
   workflow_dispatch:
 
 permissions:
@@ -19,29 +20,63 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '20'
 
-      - name: Install official Cloudiva CLI
-        run: npm install -g @cloudiva.net/cli
+      - name: Install official Chabokan CLI
+        run: npm install -g @chabokan.net/cli
 
-      - name: Login to Cloudiva with API token
+      - name: Login with API token
         env:
           CHABOKAN_TOKEN: ${{ secrets.CHABOKAN_TOKEN }}
         run: |
           set -euo pipefail
           test -n "$CHABOKAN_TOKEN" || { echo 'Missing GitHub secret: CHABOKAN_TOKEN'; exit 2; }
-          diva login -t "$CHABOKAN_TOKEN"
+          chabok login --token "$CHABOKAN_TOKEN"
 
-      - name: Discover available control commands
+      - name: Show account and services
         run: |
-          set +e
-          echo '--- diva help ---'
-          diva --help
-          echo '--- deploy help ---'
-          diva deploy --help
-          echo '--- service help (if available) ---'
-          diva service --help
-          exit 0
+          set -euo pipefail
+          chabok account info
+          chabok service list
+
+      - name: Read requested action
+        id: ctl
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          d=json.load(open('chabokan-control.json',encoding='utf-8'))
+          action=d.get('action','status')
+          service=d.get('service','python-0jatcc')
+          if action not in {'status','logs','restart','start'}:
+              raise SystemExit(f'Unsupported action: {action}')
+          print(f'action={action}')
+          print(f'service={service}')
+          PY
+
+      - name: Run requested control action
+        env:
+          ACTION: ${{ steps.ctl.outputs.action }}
+          TARGET: ${{ steps.ctl.outputs.service }}
+        run: |
+          set -euo pipefail
+          case "$ACTION" in
+            status)
+              chabok service list
+              ;;
+            logs)
+              chabok service logs --service "$TARGET" | tail -n 150
+              ;;
+            restart)
+              chabok service restart --service "$TARGET"
+              sleep 8
+              chabok service logs --service "$TARGET" | tail -n 120
+              ;;
+            start)
+              chabok service start --service "$TARGET"
+              sleep 8
+              chabok service logs --service "$TARGET" | tail -n 120
+              ;;
+          esac
 
       - name: Verify live DrLinq backend
         run: |
