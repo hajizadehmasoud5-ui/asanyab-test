@@ -1,0 +1,80 @@
+name: Chabokan control bridge
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'chabokan-control.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  control:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      SERVICE: python-0jatcc
+      CHABOK_NO_UPDATE_CHECK: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Chabokan CLI
+        run: npm install -g @chabokan.net/cli
+
+      - name: Login with API token
+        env:
+          CHABOK_TOKEN: ${{ secrets.CHABOK_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$CHABOK_TOKEN" || { echo 'Missing GitHub secret: CHABOK_TOKEN'; exit 2; }
+          chabok login --token "$CHABOK_TOKEN"
+
+      - name: Read requested action
+        id: ctl
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          d=json.load(open('chabokan-control.json',encoding='utf-8'))
+          action=d.get('action','status')
+          service=d.get('service','python-0jatcc')
+          if action not in {'status','logs','restart','start'}:
+              raise SystemExit(f'Unsupported action: {action}')
+          print(f'action={action}')
+          print(f'service={service}')
+          PY
+
+      - name: Service list
+        run: chabok service list
+
+      - name: Run control action
+        env:
+          ACTION: ${{ steps.ctl.outputs.action }}
+          TARGET: ${{ steps.ctl.outputs.service }}
+        run: |
+          set -euo pipefail
+          case "$ACTION" in
+            status)
+              echo "Status requested for $TARGET"
+              ;;
+            logs)
+              chabok service logs --service "$TARGET" | tail -n 150
+              ;;
+            restart)
+              chabok service restart --service "$TARGET"
+              sleep 8
+              chabok service logs --service "$TARGET" | tail -n 120
+              ;;
+            start)
+              chabok service start --service "$TARGET"
+              sleep 8
+              chabok service logs --service "$TARGET" | tail -n 120
+              ;;
+          esac
+
+      - name: Verify DrLinq backend
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 5 --retry-delay 3 https://python-0jatcc.cldv.dev/alanoffer/api/chat/health
+          echo
