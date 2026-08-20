@@ -19,9 +19,39 @@ Use this GitHub repository as the main control plane for DrLinq so routine chang
 
 ## Backend
 - Public API base currently used by `index.html`: `https://python-0jatcc.cldv.dev/alanoffer`
-- Source file in this repository: `backend/alanoffer_blueprint.py`
-- Backend source changes in GitHub do NOT automatically prove that the live Cloudiva service has updated; deployment/restart must be verified separately.
+- Live Cloudiva service: `python-0jatcc`
+- Backend source in `main`: `backend/alanoffer_blueprint.py`
+- Dedicated deploy branch: `cloudiva-deploy`
+- Deploy-branch runtime files: `server.py`, `alanoffer_blueprint.py`, `requirements.txt`, `start.sh`
 - Admin endpoints require `X-Admin-Token`; never commit the real admin token to GitHub.
+
+## Cloudiva control bridge
+Workflow: `.github/workflows/chabokan-control.yml`
+Control request: `chabokan-control.json`
+Sanitized result: `cloudiva-control-result.json`
+
+The bridge uses the official Cloudiva CLI (`@cloudiva.net/cli`, command `diva`) and a GitHub Actions secret. The secret value is never committed to the repository.
+
+Verified working:
+- Cloudiva API-token login
+- access to service `python-0jatcc`
+- safe status check
+- live backend health verification
+- backend version `0.4.0`
+
+Allowed control actions right now:
+- `status`
+- `restart`
+- `start`
+
+Sensitive command output is suppressed because this repository is public. Service logs must not be printed into public GitHub Actions logs.
+
+## Deploy safety lock
+`deploy` is intentionally NOT enabled in the control workflow yet.
+
+Reason: the current backend stores SQLite runtime data under the service filesystem unless `ALANOFFER_DB_PATH` points to confirmed persistent storage. Before enabling automated deploy, verify that treatment requests/provider data survive a deployment or move the database to persistent storage. Do not test live deploy by risking existing request data.
+
+Once persistence is confirmed, the intended deploy source is the dedicated `cloudiva-deploy` branch and the target service is `python-0jatcc`.
 
 ## Automated health checks
 Workflow: `.github/workflows/site-health.yml`
@@ -43,22 +73,21 @@ Patient request -> service -> province-capital city -> up to two priorities -> a
 - `robots.txt` and `sitemap.xml`
 - backend source code stored in GitHub
 - GitHub Actions health checks
+- Cloudiva service status/start/restart through the secured bridge
 - Android/source files in this repository
 - rollback by restoring earlier GitHub content when needed
 
-## What still needs an external control bridge
-- Cloudiva live backend deployment/restart
+## Remaining external/control gaps
+- safe automated backend deploy, pending persistent-database verification
 - Cloudflare DNS/account-level settings
 - Google Search Console dashboard actions
-- secrets/tokens stored outside GitHub
-
-The preferred next infrastructure step is a one-time connection from the Cloudiva backend service to this GitHub repository with auto-deploy on `main`, if Cloudiva supports it. Until that is confirmed, do not assume a backend commit is live.
+- secrets/tokens remain stored only in protected secret stores
 
 ## Privacy boundary
-Do not copy patient contact details or treatment-request records into GitHub. GitHub is for source/configuration, not sensitive patient data.
+Do not copy patient contact details, treatment-request records, service logs, or other sensitive runtime data into this public GitHub repository. GitHub is for source/configuration and sanitized status only.
 
 ## Control rule
-Before risky production changes, read the current file and preserve a rollback point. Do not change DNS, secrets, domain ownership, or deployment configuration by assumption.
+Before risky production changes, read the current file and preserve a rollback point. Do not change DNS, secrets, domain ownership, deployment configuration, or runtime data by assumption.
 
 ## Current SEO hygiene
 The sitemap contains only the public homepage. Prototype/admin pages are excluded from crawler discovery through `robots.txt` where appropriate.
