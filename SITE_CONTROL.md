@@ -24,6 +24,8 @@ Use this GitHub repository as the main control plane for DrLinq so routine chang
 - Dedicated deploy branch: `cloudiva-deploy`
 - Deploy-branch runtime files: `server.py`, `alanoffer_blueprint.py`, `requirements.txt`, `start.sh`
 - Admin endpoints require `X-Admin-Token`; never commit the real admin token to GitHub.
+- Production runtime data root: `/data`
+- SQLite database path by default: `/data/alanoffer/alanoffer.db`
 
 ## Cloudiva control bridge
 Workflow: `.github/workflows/chabokan-control.yml`
@@ -36,22 +38,26 @@ Verified working:
 - Cloudiva API-token login
 - access to service `python-0jatcc`
 - safe status check
+- start / restart control
+- guarded deploy from `cloudiva-deploy`
 - live backend health verification
 - backend version `0.4.0`
+- persistent `/data` storage survives a real service restart
 
-Allowed control actions right now:
+Allowed control actions:
 - `status`
 - `restart`
 - `start`
+- `deploy`
 
 Sensitive command output is suppressed because this repository is public. Service logs must not be printed into public GitHub Actions logs.
 
-## Deploy safety lock
-`deploy` is intentionally NOT enabled in the control workflow yet.
+## Persistent data verification
+Cloudiva persistent path `/data` is enabled for `python-0jatcc`.
+The deploy runtime now defaults `DATA_ROOT` to `/data`, so DrLinq runtime data is stored under `/data/alanoffer/`.
+A synthetic request was created, the service was restarted, and the same request remained available afterwards. The sanitized verification is stored in `cloudiva-persistence-result.json`.
 
-Reason: the current backend stores SQLite runtime data under the service filesystem unless `ALANOFFER_DB_PATH` points to confirmed persistent storage. Before enabling automated deploy, verify that treatment requests/provider data survive a deployment or move the database to persistent storage. Do not test live deploy by risking existing request data.
-
-Once persistence is confirmed, the intended deploy source is the dedicated `cloudiva-deploy` branch and the target service is `python-0jatcc`.
+Because persistence has been verified, guarded backend deploys from the `cloudiva-deploy` branch are now enabled.
 
 ## Automated health checks
 Workflow: `.github/workflows/site-health.yml`
@@ -73,12 +79,11 @@ Patient request -> service -> province-capital city -> up to two priorities -> a
 - `robots.txt` and `sitemap.xml`
 - backend source code stored in GitHub
 - GitHub Actions health checks
-- Cloudiva service status/start/restart through the secured bridge
+- Cloudiva service status/start/restart/deploy through the secured bridge
 - Android/source files in this repository
 - rollback by restoring earlier GitHub content when needed
 
 ## Remaining external/control gaps
-- safe automated backend deploy, pending persistent-database verification
 - Cloudflare DNS/account-level settings
 - Google Search Console dashboard actions
 - secrets/tokens remain stored only in protected secret stores
