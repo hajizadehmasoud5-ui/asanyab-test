@@ -1,0 +1,233 @@
+{
+  "services/python-0jatcc/": {
+    "status": 403,
+    "shape": {
+      "cloudflare_error": "bool",
+      "detail": "str",
+      "error_category": "str",
+      "error_code": "int",
+      "error_name": "str",
+      "footer": "str",
+      "instance": "str",
+      "owner_action_required": "bool",
+      "ray_id": "str",
+      "retryable": "bool",
+      "status": "int",
+      "timestamp": "str",
+      "title": "str",
+      "type": "str",
+      "what_you_should_do": "str",
+      "zone": "str"
+    }
+  },
+  "services/python-0jatcc/files/": {
+    "status": 403,
+    "shape": {
+      "cloudflare_error": "bool",
+      "detail": "str",
+      "error_category": "str",
+      "error_code": "int",
+      "error_name": "str",
+      "footer": "str",
+      "instance": "str",
+      "owner_action_required": "bool",
+      "ray_id": "str",
+      "retryable": "bool",
+      "status": "int",
+      "timestamp": "str",
+      "title": "str",
+      "type": "str",
+      "what_you_should_do": "str",
+      "zone": "str"
+    }
+  },
+  "services/python-0jatcc/file-manager/": {
+    "status": 403,
+    "shape": {
+      "cloudflare_error": "bool",
+      "detail": "str",
+      "error_category": "str",
+      "error_code": "int",
+      "error_name": "str",
+      "footer": "str",
+      "instance": "str",
+      "owner_action_required": "bool",
+      "ray_id": "str",
+      "retryable": "bool",
+      "status": "int",
+      "timestamp": "str",
+      "title": "str",
+      "type": "str",
+      "what_you_should_do": "str",
+      "zone": "str"
+    }
+  },
+  "services/python-0jatcc/filemanager/": {
+    "status": 403,
+    "shape": {
+      "cloudflare_error": "bool",
+      "detail": "str",
+      "error_category": "str",
+      "error_code": "int",
+      "error_name": "str",
+      "footer": "str",
+      "instance": "str",
+      "owner_action_required": "bool",
+      "ray_id": "str",
+      "retryable": "bool",
+      "status": "int",
+      "timestamp": "str",
+      "title": "str",
+      "type": "str",
+      "what_you_should_do": "str",
+      "zone": "str"
+    }
+  },
+  "services/python-0jatcc/ftp/": {
+    "status": 403,
+    "shape": {
+      "cloudflare_error": "bool",
+      "detail": "str",
+      "error_category": "str",
+      "error_code": "int",
+      "error_name": "str",
+      "footer": "str",
+      "instance": "str",
+      "owner_action_required": "bool",
+      "ray_id": "str",
+      "retryable": "bool",
+      "status": "int",
+      "timestamp": "str",
+      "title": "str",
+      "type": "str",
+      "what_you_should_do": "str",
+      "zone": "str"
+    }
+  },
+  "services/python-0jatcc/env/": {
+    "status": 403,
+    "shape": {
+      "cloudflare_error": "bool",
+      "detail": "str",
+      "error_category": "str",
+      "error_code": "int",
+      "error_name": "str",
+      "footer": "str",
+      "instance": "str",
+      "owner_action_required": "bool",
+      "ray_id": "str",
+      "retryable": "bool",
+      "status": "int",
+      "timestamp": "str",
+      "title": "str",
+      "type": "str",
+      "what_you_should_do": "str",
+      "zone": "str"
+    }
+  },
+  "services/python-0jatcc/environment/": {
+    "status": 403,
+    "shape": {
+      "cloudflare_error": "bool",
+      "detail": "str",
+      "error_category": "str",
+      "error_code": "int",
+      "error_name": "str",
+      "footer": "str",
+      "instance": "str",
+      "owner_action_required": "bool",
+      "ray_id": "str",
+      "retryable": "bool",
+      "status": "int",
+      "timestamp": "str",
+      "title": "str",
+      "type": "str",
+      "what_you_should_do": "str",
+      "zone": "str"
+    }
+  },
+  "services/python-0jatcc/persistent-paths/": {
+    "status": 403,
+    "shape": {
+      "cloudflare_error": "bool",
+      "detail": "str",
+      "error_category": "str",
+      "error_code": "int",
+      "error_name": "str",
+      "footer": "str",
+      "instance": "str",
+      "owner_action_required": "bool",
+      "ray_id": "str",
+      "retryable": "bool",
+      "status": "int",
+      "timestamp": "str",
+      "title": "str",
+      "type": "str",
+      "what_you_should_do": "str",
+      "zone": "str"
+    }
+  },
+  "services/python-0jatcc/permanent-paths/": {
+    "status": 403,
+    "shape": {
+      "cloudflare_error": "bool",
+      "detail": "str",
+      "error_category": "str",
+      "error_code": "int",
+      "error_name": "str",
+      "footer": "str",
+      "instance": "str",
+      "owner_action_required": "bool",
+      "ray_id": "str",
+      "retryable": "bool",
+      "status": "int",
+      "timestamp": "str",
+      "title": "str",
+      "type": "str",
+      "what_you_should_do": "str",
+      "zone": "str"
+    }
+  },
+  "services/python-0jatcc/volumes/": {
+    "status": 403,
+    "shape": {
+      "cloudflare_error": "bool",
+      "detail": "str",
+      "error_category": "str",
+      "error_code": "int",
+      "error_name": "str",
+      "footer": "str",
+      "instance": "str",
+      "owner_action_required": "bool",
+      "ray_id": "str",
+      "retryable": "bool",
+      "status": "int",
+      "timestamp": "str",
+      "title": "str",
+      "type": "str",
+      "what_you_should_do": "str",
+      "zone": "str"
+    }
+  },
+  "services/python-0jatcc/storage/": {
+    "status": 403,
+    "shape": {
+      "cloudflare_error": "bool",
+      "detail": "str",
+      "error_category": "str",
+      "error_code": "int",
+      "error_name": "str",
+      "footer": "str",
+      "instance": "str",
+      "owner_action_required": "bool",
+      "ray_id": "str",
+      "retryable": "bool",
+      "status": "int",
+      "timestamp": "str",
+      "title": "str",
+      "type": "str",
+      "what_you_should_do": "str",
+      "zone": "str"
+    }
+  }
+}
