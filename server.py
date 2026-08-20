@@ -1,6 +1,14 @@
 import os
+import subprocess
+import sys
 from pathlib import Path
-from flask import Flask, jsonify
+
+try:
+    from flask import Flask, jsonify
+except ModuleNotFoundError:
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'Flask>=3.0,<4'])
+    from flask import Flask, jsonify
+
 from alanoffer_blueprint import create_alanoffer_blueprint
 
 ROOT = Path(__file__).resolve().parent
