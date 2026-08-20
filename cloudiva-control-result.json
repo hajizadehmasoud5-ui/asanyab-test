@@ -1,8 +1,9 @@
 {
   "service": "python-0jatcc",
   "action": "logs",
-  "workflow_status": "success",
-  "run_id": "32398612732",
-  "commit_sha": "29722b942aaf45e0d66796081cda534c9e13ed14",
-  "checked_at_utc": "2026-08-20T17:37:40.464641+00:00"
+  "workflow_status": "failure",
+  "detail": "target_service_not_visible_in_token_account",
+  "run_id": "32398978309",
+  "commit_sha": "1c9ede0caea0090081f932271d383e3cf2c700e1",
+  "checked_at_utc": "2026-08-20T17:41:29.952171+00:00"
 }
