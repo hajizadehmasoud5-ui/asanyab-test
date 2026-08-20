@@ -1,4 +1,4 @@
-name: Chabokan control bridge
+name: Cloudiva control bridge
 
 on:
   push:
@@ -14,66 +14,36 @@ jobs:
   control:
     runs-on: ubuntu-latest
     timeout-minutes: 8
-    env:
-      SERVICE: python-0jatcc
-      CHABOK_NO_UPDATE_CHECK: '1'
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Chabokan CLI
-        run: npm install -g @chabokan.net/cli
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
 
-      - name: Login with API token
+      - name: Install official Cloudiva CLI
+        run: npm install -g @cloudiva.net/cli
+
+      - name: Login to Cloudiva with API token
         env:
-          CHABOK_TOKEN: ${{ secrets.CHABOK_TOKEN }}
+          CHABOKAN_TOKEN: ${{ secrets.CHABOKAN_TOKEN }}
         run: |
           set -euo pipefail
-          test -n "$CHABOK_TOKEN" || { echo 'Missing GitHub secret: CHABOK_TOKEN'; exit 2; }
-          chabok login --token "$CHABOK_TOKEN"
+          test -n "$CHABOKAN_TOKEN" || { echo 'Missing GitHub secret: CHABOKAN_TOKEN'; exit 2; }
+          diva login -t "$CHABOKAN_TOKEN"
 
-      - name: Read requested action
-        id: ctl
+      - name: Discover available control commands
         run: |
-          python - <<'PY' >> "$GITHUB_OUTPUT"
-          import json
-          d=json.load(open('chabokan-control.json',encoding='utf-8'))
-          action=d.get('action','status')
-          service=d.get('service','python-0jatcc')
-          if action not in {'status','logs','restart','start'}:
-              raise SystemExit(f'Unsupported action: {action}')
-          print(f'action={action}')
-          print(f'service={service}')
-          PY
+          set +e
+          echo '--- diva help ---'
+          diva --help
+          echo '--- deploy help ---'
+          diva deploy --help
+          echo '--- service help (if available) ---'
+          diva service --help
+          exit 0
 
-      - name: Service list
-        run: chabok service list
-
-      - name: Run control action
-        env:
-          ACTION: ${{ steps.ctl.outputs.action }}
-          TARGET: ${{ steps.ctl.outputs.service }}
-        run: |
-          set -euo pipefail
-          case "$ACTION" in
-            status)
-              echo "Status requested for $TARGET"
-              ;;
-            logs)
-              chabok service logs --service "$TARGET" | tail -n 150
-              ;;
-            restart)
-              chabok service restart --service "$TARGET"
-              sleep 8
-              chabok service logs --service "$TARGET" | tail -n 120
-              ;;
-            start)
-              chabok service start --service "$TARGET"
-              sleep 8
-              chabok service logs --service "$TARGET" | tail -n 120
-              ;;
-          esac
-
-      - name: Verify DrLinq backend
+      - name: Verify live DrLinq backend
         run: |
           set -euo pipefail
           curl -fsSL --retry 5 --retry-delay 3 https://python-0jatcc.cldv.dev/alanoffer/api/chat/health
