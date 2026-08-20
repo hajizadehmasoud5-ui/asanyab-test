@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "backend_version": "0.5.0",
+  "provider_registered": true,
+  "request_registered": true,
+  "matched": true,
+  "offer_visible_to_patient": true,
+  "selection_completed": true,
+  "checked_at_utc": "2026-08-20T20:08:04.637229+00:00"
+}
