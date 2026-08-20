@@ -30,14 +30,8 @@ jobs:
           CHABOKAN_TOKEN: ${{ secrets.CHABOKAN_TOKEN }}
         run: |
           set -euo pipefail
-          test -n "$CHABOKAN_TOKEN" || { echo 'Missing GitHub secret: CHABOKAN_TOKEN'; exit 2; }
+          test -n "$CHABOKAN_TOKEN" || { echo 'missing_token' > /tmp/control_failure; exit 2; }
           chabok login --token "$CHABOKAN_TOKEN"
-
-      - name: Show account and services
-        run: |
-          set -euo pipefail
-          chabok account info
-          chabok service list
 
       - name: Read requested action
         id: ctl
@@ -52,6 +46,19 @@ jobs:
           print(f'action={action}')
           print(f'service={service}')
           PY
+
+      - name: Verify target service is visible
+        env:
+          TARGET: ${{ steps.ctl.outputs.service }}
+        run: |
+          set -euo pipefail
+          SERVICES="$(chabok service list 2>&1)"
+          printf '%s\n' "$SERVICES"
+          if ! grep -Fq "$TARGET" <<< "$SERVICES"; then
+            echo 'target_service_not_visible_in_token_account' > /tmp/control_failure
+            echo "Target service $TARGET is not visible to this API token."
+            exit 4
+          fi
 
       - name: Run requested control action
         env:
@@ -97,10 +104,16 @@ jobs:
               req=json.load(open('chabokan-control.json',encoding='utf-8'))
           except Exception:
               req={}
+          detail=''
+          try:
+              detail=open('/tmp/control_failure',encoding='utf-8').read().strip()
+          except Exception:
+              pass
           out={
               'service': req.get('service','python-0jatcc'),
               'action': req.get('action','status'),
               'workflow_status': os.environ.get('JOB_STATUS','unknown'),
+              'detail': detail,
               'run_id': os.environ.get('RUN_ID',''),
               'commit_sha': os.environ.get('COMMIT_SHA',''),
               'checked_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat()
