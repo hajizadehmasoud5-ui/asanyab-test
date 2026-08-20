@@ -12,7 +12,8 @@ except ModuleNotFoundError:
 from alanoffer_blueprint import create_alanoffer_blueprint
 
 ROOT = Path(__file__).resolve().parent
-DATA_ROOT = Path(os.environ.get('DATA_ROOT', str(ROOT / 'data')))
+# Cloudiva persistent path. Can still be overridden explicitly with DATA_ROOT.
+DATA_ROOT = Path(os.environ.get('DATA_ROOT', '/data'))
 DATA_ROOT.mkdir(parents=True, exist_ok=True)
 
 app = Flask(__name__)
