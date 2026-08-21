@@ -32,8 +32,8 @@ jobs:
           SSHPASS: ${{ secrets.VPS_ROOT_PASSWORD }}
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          sshpass -e ssh -p "$VPS_PORT" -o BatchMode=no -o PasswordAuthentication=yes "$VPS_USER@$VPS_HOST" 'uname -srm' > /tmp/vps_os.txt
+          ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/tmp/ssh_err.txt || true
+          sshpass -e ssh -o ConnectTimeout=12 -p "$VPS_PORT" -o BatchMode=no -o PasswordAuthentication=yes "$VPS_USER@$VPS_HOST" 'uname -srm' > /tmp/vps_os.txt 2>>/tmp/ssh_err.txt
 
       - name: Write sanitized result
         env:
@@ -46,9 +46,25 @@ jobs:
           p = pathlib.Path('/tmp/vps_os.txt')
           if ok and p.exists():
               os_text = p.read_text().strip()[:200]
+          err = pathlib.Path('/tmp/ssh_err.txt').read_text(errors='ignore').lower() if pathlib.Path('/tmp/ssh_err.txt').exists() else ''
+          if ok:
+              category = ''
+          elif 'permission denied' in err:
+              category = 'authentication_failed'
+          elif 'connection timed out' in err or 'operation timed out' in err:
+              category = 'connection_timeout'
+          elif 'connection refused' in err:
+              category = 'connection_refused'
+          elif 'no route to host' in err or 'network is unreachable' in err:
+              category = 'network_unreachable'
+          elif 'host key verification failed' in err:
+              category = 'host_key_failed'
+          else:
+              category = 'ssh_failed'
           data = {
               'ssh_ok': ok,
               'os': os_text,
+              'error': category,
               'checked_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat()
           }
           pathlib.Path('vps-ssh-result.json').write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n')
