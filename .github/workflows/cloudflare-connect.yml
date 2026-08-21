@@ -61,6 +61,11 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: npx --yes wrangler@latest pages deploy cf-pages-dist --project-name=drlinq --branch=cloudflare-connect
 
+      - name: Deploy DrLinq production bundle for preview custom domain
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx --yes wrangler@latest pages deploy cf-pages-dist --project-name=drlinq --branch=main
+
       - name: Check DrLinq zone access
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
