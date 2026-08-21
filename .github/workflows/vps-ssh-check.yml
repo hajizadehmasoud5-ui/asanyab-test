@@ -29,7 +29,7 @@ jobs:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_PORT: ${{ secrets.VPS_PORT }}
-          SSHPASS: ${{ secrets.VPS_ROOT_PASSWORD }}
+          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
         run: |
           set +e
           mkdir -p ~/.ssh
@@ -57,7 +57,7 @@ jobs:
               category = ''
           elif 'permission denied' in err:
               category = 'authentication_failed'
-          elif 'password expired' in err or 'must change your password' in err:
+          elif 'password expired' in err or 'must change your password' in err or 'change your password immediately' in err:
               category = 'password_change_required'
           elif 'connection timed out' in err or 'operation timed out' in err or 'connect timeout' in err:
               category = 'connection_timeout'
@@ -82,6 +82,7 @@ jobs:
               detail = text[:300]
           data = {
               'ssh_ok': ok,
+              'using': 'new_root_password',
               'os': os_text,
               'error': category,
               'exit_code': exit_code,
@@ -98,7 +99,3 @@ jobs:
           git add vps-ssh-result.json
           git commit -m "Record VPS SSH check result" || exit 0
           git push
-
-# detailed-retry-after-vps-restart-2026-08-21
-# retry-after-password-update-2026-08-21-1859
-# detailed-auth-diagnostic-2026-08-21-1900
