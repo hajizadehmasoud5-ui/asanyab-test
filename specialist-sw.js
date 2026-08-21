@@ -1,4 +1,4 @@
-const CACHE='drlinq-specialist-v2';
+const CACHE='drlinq-specialist-v3';
 const SHELL=['/shahmoradi-panel.html','/activate-shahmoradi.html','/specialist-app.webmanifest','/specialist-icon.svg'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
@@ -14,8 +14,6 @@ self.addEventListener('push',event=>{
   const title=data.title||'دکتر لینک';
   const options={
     body:data.body||'ارجاع جدید برای شما ثبت شد.',
-    icon:'/specialist-icon.svg',
-    badge:'/specialist-icon.svg',
     tag:data.tag||'drlinq-referral',
     renotify:true,
     vibrate:[180,80,180],
