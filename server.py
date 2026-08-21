@@ -15,6 +15,7 @@ from drlinq_secretary import create_drlinq_secretary_blueprint
 from drlinq_assistant import create_drlinq_assistant_blueprint
 from drlinq_referral import create_drlinq_referral_blueprint
 from drlinq_referral_short import create_drlinq_referral_short_blueprint
+from drlinq_push import create_drlinq_push_blueprint
 
 ROOT = Path(__file__).resolve().parent
 DATA_ROOT = Path(os.environ.get('DATA_ROOT', '/data'))
@@ -27,10 +28,11 @@ app.register_blueprint(create_drlinq_secretary_blueprint(DATA_ROOT))
 app.register_blueprint(create_drlinq_assistant_blueprint(DATA_ROOT))
 app.register_blueprint(create_drlinq_referral_blueprint(DATA_ROOT))
 app.register_blueprint(create_drlinq_referral_short_blueprint(DATA_ROOT))
+app.register_blueprint(create_drlinq_push_blueprint(DATA_ROOT))
 
 @app.get('/')
 def root():
-    return jsonify(ok=True, service='drlinq-platform', version='0.8.1')
+    return jsonify(ok=True, service='drlinq-platform', version='0.8.2')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', '3000')))
