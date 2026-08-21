@@ -1,0 +1,8 @@
+{
+  "ok": true,
+  "backend_version": "0.1.0",
+  "adaptive_intake": true,
+  "clinic_memory": true,
+  "human_teach_once": true,
+  "semantic_reuse": true
+}
