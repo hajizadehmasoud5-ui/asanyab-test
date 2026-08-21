@@ -1,0 +1,29 @@
+name: VPS SSH Check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/vps-ssh-check.yml'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Install SSH password helper
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass
+
+      - name: Check SSH access
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          SSHPASS: ${{ secrets.VPS_ROOT_PASSWORD }}
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          sshpass -e ssh -p "$VPS_PORT" -o BatchMode=no -o PasswordAuthentication=yes "$VPS_USER@$VPS_HOST" 'echo VPS_SSH_OK && uname -a && id -u'
