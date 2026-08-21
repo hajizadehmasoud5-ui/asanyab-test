@@ -1,0 +1,9 @@
+{
+  "ok": true,
+  "backend_version": "0.1.0",
+  "specialist_registration": true,
+  "conditional_referral_submission": true,
+  "file_upload": true,
+  "specialist_dashboard": true,
+  "secure_file_download": true
+}
