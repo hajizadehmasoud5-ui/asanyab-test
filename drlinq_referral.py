@@ -244,7 +244,7 @@ def create_drlinq_referral_blueprint(data_root: str | Path) -> Blueprint:
             "restorativePlan", "instructions", "consent"
         }
         payload = {k: clean(payload.get(k), 1400) for k in allowed if k in payload}
-        required = ["patientName", "patientPhone", "referringDoctor", "tooth", "referralType", "urgency"]
+        required = ["patientName", "referringDoctor", "tooth", "referralType", "urgency"]
         if any(not payload.get(k) for k in required):
             return jsonify(error="missing_required_fields"), 400
         if payload.get("consent") not in {"true", "1", "yes", "بله"}:
