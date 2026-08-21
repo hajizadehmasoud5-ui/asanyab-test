@@ -77,3 +77,5 @@ jobs:
           git add vps-ssh-result.json
           git commit -m "Record VPS SSH check result" || exit 0
           git push
+
+# retry-after-vps-restart-2026-08-21
