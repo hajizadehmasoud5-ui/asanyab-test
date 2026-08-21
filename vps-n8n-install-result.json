@@ -1,0 +1,7 @@
+{
+  "install_ok": true,
+  "health_ok": true,
+  "verify": "{\"status\":\"ok\"}\nDocker version 29.7.2, build a7dcaa6\nDocker Compose version v5.5.0",
+  "error": "",
+  "checked_at_utc": "2026-08-21T17:35:41.739342+00:00"
+}
