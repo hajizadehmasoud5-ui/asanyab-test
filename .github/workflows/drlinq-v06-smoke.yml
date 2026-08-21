@@ -1,0 +1,57 @@
+name: DrLinq v0.6 smoke
+on:
+  push:
+    paths:
+      - '.github/workflows/drlinq-v06-smoke.yml'
+permissions:
+  contents: write
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run sanitized end-to-end smoke test
+        run: |
+          python - <<'PY'
+          import json, urllib.request
+          from datetime import datetime, timezone
+          BASE='https://python-0jatcc.cldv.dev/alanoffer/api/v2'
+          def call(path, method='GET', data=None, headers=None):
+              body=None if data is None else json.dumps(data,ensure_ascii=False).encode()
+              h={'Content-Type':'application/json'}
+              if headers: h.update(headers)
+              req=urllib.request.Request(BASE+path,data=body,method=method,headers=h)
+              with urllib.request.urlopen(req,timeout=25) as r:
+                  return json.loads(r.read().decode())
+          health=call('/health')
+          assert health.get('version')=='0.6.0', health.get('version')
+          provider=call('/providers/register','POST',{
+              'name':'مرکز تست خودکار','providerType':'specialist','service':'ایمپلنت','city':'اهواز','area':'کیانپارس',
+              'priceMin':10000000,'priceMax':30000000,'availability':'فردا عصر','features':['آفر فعال'],
+              'offerText':'شرایط تست','insuranceContracts':[{'insurer':'بیمه دانا','plan':'فرهنگیان','service':'ایمپلنت','franchise':20,'patientShare':10,'validUntil':'1405/12/29'}]
+          })
+          pid,tok=provider['providerId'],provider['accessToken']
+          patient=call('/requests','POST',{
+              'service':'ایمپلنت','city':'اهواز','area':'کیانپارس','providerType':'specialist','budgetMax':25000000,
+              'priorities':['نزدیک‌تر','بیمه','هزینه کمتر'],'wait':'تا ۳ روز','insurers':['بیمه دانا'],'insurancePlan':'فرهنگیان'
+          })
+          rid=patient['requestId']
+          dash=call('/providers/'+pid+'/dashboard?token='+tok)
+          matched=any(x.get('requestId')==rid for x in dash.get('requests',[]))
+          assert matched
+          call('/providers/'+pid+'/requests/'+rid+'/offer?token='+tok,'POST',{'action':'interested','offeredPrice':18000000,'availability':'فردا عصر','note':'پیشنهاد تست'})
+          pd=call('/requests/'+rid)
+          offer=next(x for x in pd.get('offers',[]) if x.get('providerId')==pid)
+          insurance_ok=bool(offer.get('insuranceMatches')) and offer['insuranceMatches'][0].get('franchise')==20 and offer['insuranceMatches'][0].get('patientShare')==10
+          assert insurance_ok
+          call('/requests/'+rid+'/select','POST',{'providerId':pid})
+          result={'ok':True,'backend_version':health.get('version'),'provider_registered':True,'request_registered':True,'insurance_matched':insurance_ok,'offer_visible_to_patient':True,'selection_completed':True,'checked_at_utc':datetime.now(timezone.utc).isoformat()}
+          open('drlinq-v06-smoke-result.json','w').write(json.dumps(result,ensure_ascii=False,indent=2))
+          PY
+      - name: Record sanitized result
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add drlinq-v06-smoke-result.json
+          git commit -m 'Record DrLinq v0.6 smoke result' || exit 0
+          git push
