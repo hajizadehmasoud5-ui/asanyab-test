@@ -57,6 +57,8 @@ jobs:
               category = ''
           elif 'permission denied' in err:
               category = 'authentication_failed'
+          elif 'password expired' in err or 'must change your password' in err:
+              category = 'password_change_required'
           elif 'connection timed out' in err or 'operation timed out' in err or 'connect timeout' in err:
               category = 'connection_timeout'
           elif 'connection refused' in err:
@@ -73,10 +75,11 @@ jobs:
               category = 'ssh_failed'
           detail = ''
           if not ok and raw:
-              line = next((x.strip() for x in raw.splitlines() if x.strip()), '')
-              line = re.sub(r'\b(?:\d{1,3}\.){3}\d{1,3}\b', '[host]', line)
-              line = re.sub(r'root@[^\s:]+', 'root@[host]', line, flags=re.I)
-              detail = line[:180]
+              lines = [x.strip() for x in raw.splitlines() if x.strip() and 'ssh-2.0-openssh' not in x.lower()]
+              text = ' | '.join(lines[-3:])
+              text = re.sub(r'\b(?:\d{1,3}\.){3}\d{1,3}\b', '[host]', text)
+              text = re.sub(r'root@[^\s:]+', 'root@[host]', text, flags=re.I)
+              detail = text[:300]
           data = {
               'ssh_ok': ok,
               'os': os_text,
@@ -98,3 +101,4 @@ jobs:
 
 # detailed-retry-after-vps-restart-2026-08-21
 # retry-after-password-update-2026-08-21-1859
+# detailed-auth-diagnostic-2026-08-21-1900
