@@ -98,3 +98,35 @@ jobs:
               printf '%s' "$created" | jq -r '"preview_domain_status=" + (.result.status // "unknown")'
             fi
           fi
+
+      - name: Check preview DNS record
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          zones="$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" "https://api.cloudflare.com/client/v4/zones?name=drlinq.ir")"
+          ZONE_ID="$(printf '%s' "$zones" | jq -r '.result[0].id // empty')"
+          if [ -z "$ZONE_ID" ]; then
+            echo "preview_dns_check=zone_not_found"
+            exit 0
+          fi
+          dns="$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?name=preview.drlinq.ir")"
+          dns_success="$(printf '%s' "$dns" | jq -r '.success // false')"
+          dns_count="$(printf '%s' "$dns" | jq -r '.result | if type=="array" then length else 0 end')"
+          echo "preview_dns_api_success=$dns_success"
+          echo "preview_dns_record_count=$dns_count"
+          if [ "$dns_success" != "true" ]; then
+            printf '%s' "$dns" | jq -r '.errors[]? | "cloudflare_dns_error_code=\(.code) message=\(.message)"'
+            exit 0
+          fi
+          if [ "$dns_count" = "0" ]; then
+            created="$(curl -sS -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" --data '{"type":"CNAME","name":"preview.drlinq.ir","content":"drlinq.pages.dev","ttl":1,"proxied":true}' "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records")"
+            create_success="$(printf '%s' "$created" | jq -r '.success // false')"
+            echo "preview_dns_create_success=$create_success"
+            if [ "$create_success" != "true" ]; then
+              printf '%s' "$created" | jq -r '.errors[]? | "cloudflare_dns_error_code=\(.code) message=\(.message)"'
+            fi
+          else
+            echo "preview_dns_record_exists=true"
+          fi
