@@ -3,6 +3,6 @@
   "os": "",
   "error": "ssh_failed",
   "exit_code": "1",
-  "detail": "# [host]:22 SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.18",
-  "checked_at_utc": "2026-08-21T15:30:23.429140+00:00"
+  "detail": "You are required to change your password immediately (administrator enforced). | WARNING: Your password has expired. | Password change required but no TTY available.",
+  "checked_at_utc": "2026-08-21T15:31:19.362704+00:00"
 }
