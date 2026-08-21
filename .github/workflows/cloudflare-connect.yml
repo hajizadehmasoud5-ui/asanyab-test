@@ -32,7 +32,20 @@ jobs:
             echo "drlinq_pages_project_exists=true"
           else
             echo "drlinq_pages_project_exists=false"
-            npx --yes wrangler@latest pages project create drlinq --production-branch main
+            set +e
+            create_output="$(npx --yes wrangler@latest pages project create drlinq --production-branch main 2>&1)"
+            create_code=$?
+            set -e
+            if [ "$create_code" -ne 0 ]; then
+              if printf '%s' "$create_output" | grep -qi 'already exists'; then
+                echo "drlinq_pages_project_exists=true"
+              else
+                printf '%s\n' "$create_output" >&2
+                exit "$create_code"
+              fi
+            else
+              printf '%s\n' "$create_output"
+            fi
           fi
 
       - name: Build safe preview bundle
