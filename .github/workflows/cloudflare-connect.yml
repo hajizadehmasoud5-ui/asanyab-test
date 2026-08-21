@@ -83,7 +83,7 @@ jobs:
           set -euo pipefail
           rm -rf cf-pages-dist
           mkdir -p cf-pages-dist/dr.shahmoradi.endodontist
-          cp index.html robots.txt sitemap.xml referral-fast.html activate-shahmoradi.html shahmoradi-panel.html cf-pages-dist/
+          cp index.html robots.txt sitemap.xml referral-fast.html activate-shahmoradi.html shahmoradi-panel.html specialist-app.webmanifest specialist-icon.svg specialist-sw.js cf-pages-dist/
           cp dr.shahmoradi.endodontist/index.html cf-pages-dist/dr.shahmoradi.endodontist/index.html
           cp cloudflare-preview-worker.js cf-pages-dist/_worker.js
 
