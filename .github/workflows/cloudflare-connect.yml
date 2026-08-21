@@ -87,6 +87,7 @@ jobs:
           domains="$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" "$BASE")"
           if printf '%s' "$domains" | jq -e '.result[]? | select(.name == "preview.drlinq.ir")' >/dev/null; then
             echo "preview_domain_exists=true"
+            printf '%s' "$domains" | jq -r '.result[]? | select(.name == "preview.drlinq.ir") | "preview_domain_status=" + (.status // "unknown")'
           else
             created="$(curl -sS -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" --data '{"name":"preview.drlinq.ir"}' "$BASE")"
             success="$(printf '%s' "$created" | jq -r '.success // false')"
