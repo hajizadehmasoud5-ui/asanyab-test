@@ -60,3 +60,4 @@ jobs:
           git add assistant-pro-smoke-result.json
           git commit -m 'Record adaptive assistant smoke result'
           git push
+# rerun after semantic matching update
