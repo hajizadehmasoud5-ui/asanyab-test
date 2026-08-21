@@ -60,3 +60,18 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: npx --yes wrangler@latest pages deploy cf-pages-dist --project-name=drlinq --branch=cloudflare-connect
+
+      - name: Check DrLinq zone access
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" "https://api.cloudflare.com/client/v4/zones?name=drlinq.ir")"
+          success="$(printf '%s' "$response" | jq -r '.success // false')"
+          count="$(printf '%s' "$response" | jq -r '.result | if type=="array" then length else 0 end')"
+          echo "zone_api_success=$success"
+          echo "drlinq_zone_count=$count"
+          if [ "$success" != "true" ]; then
+            printf '%s' "$response" | jq -r '.errors[]? | "cloudflare_error_code=\(.code) message=\(.message)"'
+          fi
