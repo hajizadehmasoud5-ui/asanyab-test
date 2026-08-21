@@ -75,3 +75,25 @@ jobs:
           if [ "$success" != "true" ]; then
             printf '%s' "$response" | jq -r '.errors[]? | "cloudflare_error_code=\(.code) message=\(.message)"'
           fi
+
+      - name: Ensure preview.drlinq.ir custom domain
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACCOUNT_ID="071050881d9e94f9fcf18db432bc972e"
+          BASE="https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/pages/projects/drlinq/domains"
+          domains="$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" "$BASE")"
+          if printf '%s' "$domains" | jq -e '.result[]? | select(.name == "preview.drlinq.ir")' >/dev/null; then
+            echo "preview_domain_exists=true"
+          else
+            created="$(curl -sS -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" --data '{"name":"preview.drlinq.ir"}' "$BASE")"
+            success="$(printf '%s' "$created" | jq -r '.success // false')"
+            echo "preview_domain_create_success=$success"
+            if [ "$success" != "true" ]; then
+              printf '%s' "$created" | jq -r '.errors[]? | "cloudflare_error_code=\(.code) message=\(.message)"'
+            else
+              printf '%s' "$created" | jq -r '"preview_domain_status=" + (.result.status // "unknown")'
+            fi
+          fi
