@@ -31,40 +31,58 @@ jobs:
           VPS_PORT: ${{ secrets.VPS_PORT }}
           SSHPASS: ${{ secrets.VPS_ROOT_PASSWORD }}
         run: |
+          set +e
           mkdir -p ~/.ssh
           ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/tmp/ssh_err.txt || true
           sshpass -e ssh -o ConnectTimeout=12 -p "$VPS_PORT" -o BatchMode=no -o PasswordAuthentication=yes "$VPS_USER@$VPS_HOST" 'uname -srm' > /tmp/vps_os.txt 2>>/tmp/ssh_err.txt
+          code=$?
+          echo "$code" > /tmp/ssh_exit.txt
+          exit "$code"
 
       - name: Write sanitized result
         env:
           OUTCOME: ${{ steps.sshcheck.outcome }}
         run: |
           python3 - <<'PY'
-          import json, os, pathlib, datetime
+          import json, os, pathlib, datetime, re
           ok = os.environ.get('OUTCOME') == 'success'
           os_text = ''
           p = pathlib.Path('/tmp/vps_os.txt')
           if ok and p.exists():
               os_text = p.read_text().strip()[:200]
-          err = pathlib.Path('/tmp/ssh_err.txt').read_text(errors='ignore').lower() if pathlib.Path('/tmp/ssh_err.txt').exists() else ''
+          raw = pathlib.Path('/tmp/ssh_err.txt').read_text(errors='ignore') if pathlib.Path('/tmp/ssh_err.txt').exists() else ''
+          err = raw.lower()
+          exit_code = pathlib.Path('/tmp/ssh_exit.txt').read_text().strip() if pathlib.Path('/tmp/ssh_exit.txt').exists() else ''
           if ok:
               category = ''
           elif 'permission denied' in err:
               category = 'authentication_failed'
-          elif 'connection timed out' in err or 'operation timed out' in err:
+          elif 'connection timed out' in err or 'operation timed out' in err or 'connect timeout' in err:
               category = 'connection_timeout'
           elif 'connection refused' in err:
               category = 'connection_refused'
           elif 'no route to host' in err or 'network is unreachable' in err:
               category = 'network_unreachable'
-          elif 'host key verification failed' in err:
+          elif 'host key verification failed' in err or 'remote host identification has changed' in err:
               category = 'host_key_failed'
+          elif 'connection closed' in err or 'kex_exchange_identification' in err:
+              category = 'connection_closed'
+          elif 'could not resolve hostname' in err:
+              category = 'dns_failed'
           else:
               category = 'ssh_failed'
+          detail = ''
+          if not ok and raw:
+              line = next((x.strip() for x in raw.splitlines() if x.strip()), '')
+              line = re.sub(r'\b(?:\d{1,3}\.){3}\d{1,3}\b', '[host]', line)
+              line = re.sub(r'root@[^\s:]+', 'root@[host]', line, flags=re.I)
+              detail = line[:180]
           data = {
               'ssh_ok': ok,
               'os': os_text,
               'error': category,
+              'exit_code': exit_code,
+              'detail': detail,
               'checked_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat()
           }
           pathlib.Path('vps-ssh-result.json').write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n')
@@ -78,4 +96,4 @@ jobs:
           git commit -m "Record VPS SSH check result" || exit 0
           git push
 
-# retry-after-vps-restart-2026-08-21
+# detailed-retry-after-vps-restart-2026-08-21
