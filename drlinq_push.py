@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 import sqlite3
 import threading
 import time
@@ -12,7 +13,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from flask import Blueprint, jsonify, request
 from pywebpush import WebPushException, webpush
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 POLL_SECONDS = 5
 
 
@@ -31,6 +32,9 @@ def create_drlinq_push_blueprint(data_root: str | Path) -> Blueprint:
 
     def now() -> int:
         return int(time.time() * 1000)
+
+    def clean(v, n=500) -> str:
+        return re.sub(r"\s+", " ", str(v or "")).strip()[:n]
 
     def init_db():
         with con() as c:
@@ -58,17 +62,24 @@ def create_drlinq_push_blueprint(data_root: str | Path) -> Blueprint:
             )
 
     def ensure_vapid_key():
+        """Keep one stable P-256 VAPID key and serialize it in py_vapid-compatible EC PEM form."""
+        private_key = None
         if vapid_path.exists():
-            return
-        private_key = ec.generate_private_key(ec.SECP256R1())
+            try:
+                private_key = serialization.load_pem_private_key(vapid_path.read_bytes(), password=None)
+            except Exception:
+                private_key = None
+        if private_key is None:
+            private_key = ec.generate_private_key(ec.SECP256R1())
         pem = private_key.private_bytes(
             encoding=serialization.Encoding.PEM,
-            format=serialization.PrivateFormat.PKCS8,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
             encryption_algorithm=serialization.NoEncryption(),
         )
-        tmp = vapid_path.with_suffix(".tmp")
-        tmp.write_bytes(pem)
-        tmp.replace(vapid_path)
+        if not vapid_path.exists() or vapid_path.read_bytes() != pem:
+            tmp = vapid_path.with_suffix(".tmp")
+            tmp.write_bytes(pem)
+            tmp.replace(vapid_path)
 
     def public_key_b64() -> str:
         private_key = serialization.load_pem_private_key(vapid_path.read_bytes(), password=None)
@@ -79,11 +90,11 @@ def create_drlinq_push_blueprint(data_root: str | Path) -> Blueprint:
         return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
 
     def specialist_auth(sid: str):
-        token = str(request.args.get("token") or request.headers.get("X-Referral-Token") or "")[:300]
+        token = clean(request.args.get("token") or request.headers.get("X-Referral-Token"), 300)
         with con() as c:
             row = c.execute(
                 "SELECT * FROM drlinq_referral_specialists WHERE id=? AND active=1",
-                (str(sid)[:180],),
+                (clean(sid, 180),),
             ).fetchone()
         if not row or not token:
             return None
@@ -92,7 +103,7 @@ def create_drlinq_push_blueprint(data_root: str | Path) -> Blueprint:
             return None
         return row
 
-    def send_push(subscription: dict, title: str, body: str, url: str = "/shahmoradi-panel.html") -> tuple[bool, int | None]:
+    def send_push(subscription: dict, title: str, body: str, url: str = "/shahmoradi-panel.html") -> tuple[bool, int | None, str]:
         payload = json.dumps(
             {"title": title, "body": body, "url": url, "tag": "drlinq-referral"},
             ensure_ascii=False,
@@ -107,13 +118,15 @@ def create_drlinq_push_blueprint(data_root: str | Path) -> Blueprint:
                 vapid_private_key=str(vapid_path),
                 vapid_claims={"sub": "mailto:push@drlinq.ir"},
                 ttl=300,
+                timeout=12,
             )
-            return True, None
+            return True, None, ""
         except WebPushException as exc:
             code = getattr(getattr(exc, "response", None), "status_code", None)
-            return False, code
-        except Exception:
-            return False, None
+            detail = clean(getattr(getattr(exc, "response", None), "text", "") or str(exc), 350)
+            return False, code, detail
+        except Exception as exc:
+            return False, None, clean(f"{type(exc).__name__}: {exc}", 350)
 
     def process_pending_once():
         with con() as c:
@@ -143,7 +156,7 @@ def create_drlinq_push_blueprint(data_root: str | Path) -> Blueprint:
                     body += f" • دندان {r['tooth']}"
                 if r["urgency"]:
                     body += f" • {r['urgency']}"
-                ok, code = send_push(dict(sub), "ارجاع جدید در دکتر لینک", body)
+                ok, code, _detail = send_push(dict(sub), "ارجاع جدید در دکتر لینک", body)
                 if ok:
                     with con() as c:
                         c.execute(
@@ -209,8 +222,31 @@ def create_drlinq_push_blueprint(data_root: str | Path) -> Blueprint:
                 (specialist["id"], endpoint, p256dh, auth_key, ts, ts),
             )
             row = c.execute("SELECT * FROM drlinq_push_subscriptions WHERE endpoint=?", (endpoint,)).fetchone()
-        ok, _ = send_push(dict(row), "دکتر لینک", "نوتیفیکیشن ارجاع‌های جدید فعال شد.")
-        return jsonify(ok=True, testPushSent=ok)
+        ok, code, detail = send_push(dict(row), "دکتر لینک", "نوتیفیکیشن ارجاع‌های جدید فعال شد.")
+        return jsonify(ok=True, testPushSent=ok, testPushCode=code, testPushError=detail)
+
+    @bp.post("/test/<sid>")
+    def test_push(sid):
+        specialist = specialist_auth(sid)
+        if not specialist:
+            return jsonify(error="unauthorized"), 401
+        with con() as c:
+            rows = c.execute(
+                "SELECT * FROM drlinq_push_subscriptions WHERE specialist_id=? ORDER BY id",
+                (specialist["id"],),
+            ).fetchall()
+        sent = 0
+        failures = []
+        for row in rows:
+            ok, code, detail = send_push(dict(row), "تست اعلان دکتر لینک", "اگر این پیام را می‌بینید، اعلان ارجاع‌ها فعال است.")
+            if ok:
+                sent += 1
+            else:
+                failures.append({"code": code, "detail": detail})
+                if code in {404, 410}:
+                    with con() as c:
+                        c.execute("DELETE FROM drlinq_push_subscriptions WHERE id=?", (row["id"],))
+        return jsonify(ok=True, subscriptions=len(rows), sent=sent, failed=len(failures), failures=failures[:3])
 
     @bp.post("/unsubscribe/<sid>")
     def unsubscribe(sid):
