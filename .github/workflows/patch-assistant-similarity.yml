@@ -1,0 +1,32 @@
+name: Patch assistant similarity
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-assistant-similarity.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cloudiva-deploy
+      - name: Improve semantic reuse
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('drlinq_assistant.py')
+          s=p.read_text(encoding='utf-8')
+          old='    {"ساعت", "ساعات", "زمان کاری", "باز هستید"},\n]'
+          new='    {"ساعت", "ساعات", "زمان کاری", "باز هستید"},\n    {"زمان", "مدت", "طول", "طول میکشه", "چقدر طول"},\n]'
+          if old not in s:
+              raise SystemExit('synonym_anchor_not_found')
+          s=s.replace(old,new,1).replace('if best and score >= 0.72:', 'if best and score >= 0.62:', 1)
+          p.write_text(s,encoding='utf-8')
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add drlinq_assistant.py
+          git commit -m 'Improve adaptive assistant semantic reuse'
+          git push origin HEAD:cloudiva-deploy
