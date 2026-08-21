@@ -60,6 +60,7 @@ SYNONYM_GROUPS = [
     {"نوبت", "وقت", "ویزیت", "مراجعه"},
     {"آدرس", "کجاست", "موقعیت", "لوکیشن"},
     {"ساعت", "ساعات", "زمان کاری", "باز هستید"},
+    {"زمان", "مدت", "طول", "طول میکشه", "چقدر طول"},
 ]
 
 
@@ -255,7 +256,7 @@ def create_drlinq_assistant_blueprint(data_root: str | Path) -> Blueprint:
             s = similarity(text, row["question"])
             if s > score:
                 best, score = row, s
-        if best and score >= 0.72:
+        if best and score >= 0.62:
             with con() as c:
                 c.execute("UPDATE drlinq_assistant_knowledge SET use_count=use_count+1,updated_at=? WHERE id=?", (now(), best["id"]))
             return best, score
