@@ -29,7 +29,7 @@ jobs:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_PORT: ${{ secrets.VPS_PORT }}
-          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+          SSHPASS: ${{ secrets.VPS_ROOT_PASSWORD }}
         run: |
           set +e
           mkdir -p ~/.ssh
@@ -82,7 +82,7 @@ jobs:
               detail = text[:300]
           data = {
               'ssh_ok': ok,
-              'using': 'new_root_password',
+              'using': 'initial_root_password',
               'os': os_text,
               'error': category,
               'exit_code': exit_code,
@@ -99,3 +99,5 @@ jobs:
           git add vps-ssh-result.json
           git commit -m "Record VPS SSH check result" || exit 0
           git push
+
+# retry-after-reinstall-2026-08-21
