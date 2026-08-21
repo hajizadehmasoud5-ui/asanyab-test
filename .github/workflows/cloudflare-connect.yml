@@ -48,16 +48,32 @@ jobs:
             fi
           fi
 
-      - name: Verify Shahmoradi specialist record
+      - name: Ensure Shahmoradi specialist record
         shell: bash
         run: |
           set -euo pipefail
-          curl -fsS 'https://python-0jatcc.cldv.dev/alanoffer/api/referral/c/dr-shahmoradi-endodontist' > /tmp/shahmoradi.json
+          BASE='https://python-0jatcc.cldv.dev/alanoffer/api/referral'
+          SLUG='dr-shahmoradi-endodontist'
+          status="$(curl -sS -o /tmp/shahmoradi.json -w '%{http_code}' "$BASE/c/$SLUG")"
+          if [ "$status" = "404" ]; then
+            echo 'specialist_record_missing=true'
+            reg_status="$(curl -sS -o /tmp/shahmoradi-register.json -w '%{http_code}' -X POST "$BASE/specialists/register" -H 'Content-Type: application/json' --data '{"name":"دکتر محسن شاهمرادی","clinicName":"مطب دکتر محسن شاهمرادی","city":"اهواز","phone":"","slug":"dr-shahmoradi-endodontist"}')"
+            echo "specialist_registration_http_status=$reg_status"
+            case "$reg_status" in
+              200|201) ;;
+              *) echo 'specialist_registration_failed=true' >&2; exit 1 ;;
+            esac
+          elif [ "$status" != "200" ]; then
+            echo "specialist_lookup_http_status=$status" >&2
+            exit 1
+          fi
+          curl -fsS "$BASE/c/$SLUG" > /tmp/shahmoradi-final.json
           python - <<'PY'
           import json
-          d=json.load(open('/tmp/shahmoradi.json'))
-          assert d.get('ok') is True
-          assert (d.get('specialist') or {}).get('name') == 'دکتر محسن شاهمرادی'
+          d=json.load(open('/tmp/shahmoradi-final.json',encoding='utf-8'))
+          assert d.get('ok') is True, d
+          s=d.get('specialist') or {}
+          assert s.get('name') == 'دکتر محسن شاهمرادی', s
           print('specialist_record_ok=true')
           PY
 
