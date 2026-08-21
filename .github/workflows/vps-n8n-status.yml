@@ -28,7 +28,7 @@ jobs:
           SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
         run: |
           set +e
-          sshpass -e ssh -o ConnectTimeout=15 -p "$VPS_PORT" -o BatchMode=no -o PasswordAuthentication=yes "$VPS_USER@$VPS_HOST" 'bash -s' <<'REMOTE' > /tmp/status.txt 2>/tmp/status_err.txt
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15 -p "$VPS_PORT" -o BatchMode=no -o PasswordAuthentication=yes "$VPS_USER@$VPS_HOST" 'bash -s' <<'REMOTE' > /tmp/status.txt 2>/tmp/status_err.txt
           echo "SSH_OK"
           if command -v docker >/dev/null 2>&1; then
             echo "DOCKER_INSTALLED"
