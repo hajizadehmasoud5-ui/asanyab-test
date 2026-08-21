@@ -1,0 +1,76 @@
+name: VPS n8n Status
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/vps-n8n-status.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install sshpass
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
+      - name: Check server
+        id: check
+        continue-on-error: true
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+        run: |
+          set +e
+          sshpass -e ssh -o ConnectTimeout=15 -p "$VPS_PORT" -o BatchMode=no -o PasswordAuthentication=yes "$VPS_USER@$VPS_HOST" 'bash -s' <<'REMOTE' > /tmp/status.txt 2>/tmp/status_err.txt
+          echo "SSH_OK"
+          if command -v docker >/dev/null 2>&1; then
+            echo "DOCKER_INSTALLED"
+            docker --version || true
+            docker compose version || true
+            if [ -f /opt/n8n/compose.yml ]; then
+              echo "COMPOSE_FILE_PRESENT"
+              cd /opt/n8n
+              docker compose ps || true
+            else
+              echo "COMPOSE_FILE_MISSING"
+            fi
+            if curl -fsS http://127.0.0.1:5678/healthz >/dev/null 2>&1; then
+              echo "N8N_HEALTH_OK"
+            else
+              echo "N8N_HEALTH_FAIL"
+            fi
+          else
+            echo "DOCKER_MISSING"
+          fi
+          REMOTE
+          echo $? > /tmp/status_code.txt
+          exit 0
+      - name: Write result
+        run: |
+          python3 - <<'PY'
+          import pathlib,json,datetime
+          def r(p):
+              x=pathlib.Path(p)
+              return x.read_text(errors='ignore').strip() if x.exists() else ''
+          data={
+            'status': r('/tmp/status.txt')[-2000:],
+            'error': r('/tmp/status_err.txt')[-500:],
+            'exit_code': r('/tmp/status_code.txt'),
+            'checked_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat()
+          }
+          pathlib.Path('vps-n8n-status-result.json').write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n')
+          PY
+      - name: Commit result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add vps-n8n-status-result.json
+          git commit -m "Record VPS n8n status" || exit 0
+          git push
