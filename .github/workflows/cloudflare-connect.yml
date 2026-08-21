@@ -34,3 +34,16 @@ jobs:
             echo "drlinq_pages_project_exists=false"
             npx --yes wrangler@latest pages project create drlinq --production-branch main
           fi
+
+      - name: Build safe preview bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf cf-pages-dist
+          mkdir -p cf-pages-dist
+          cp index.html robots.txt sitemap.xml cf-pages-dist/
+
+      - name: Deploy DrLinq preview to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx --yes wrangler@latest pages deploy cf-pages-dist --project-name=drlinq --branch=cloudflare-connect
