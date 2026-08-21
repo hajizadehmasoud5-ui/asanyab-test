@@ -2,5 +2,7 @@
   "ssh_ok": false,
   "os": "",
   "error": "ssh_failed",
-  "checked_at_utc": "2026-08-21T15:26:05.688030+00:00"
+  "exit_code": "1",
+  "detail": "# [host]:22 SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.18",
+  "checked_at_utc": "2026-08-21T15:27:00.337979+00:00"
 }
