@@ -1,0 +1,165 @@
+name: Install n8n on VPS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/vps-install-n8n.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install sshpass
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass
+
+      - name: Install Docker and n8n
+        id: deploy
+        continue-on-error: true
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          sshpass -e ssh -o ConnectTimeout=20 -p "$VPS_PORT" -o BatchMode=no -o PasswordAuthentication=yes "$VPS_USER@$VPS_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update -qq
+          apt-get install -y -qq ca-certificates curl gnupg openssl
+
+          install -m 0755 -d /etc/apt/keyrings
+          if [ ! -f /etc/apt/keyrings/docker.gpg ]; then
+            curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+            chmod a+r /etc/apt/keyrings/docker.gpg
+          fi
+          . /etc/os-release
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu ${VERSION_CODENAME} stable" > /etc/apt/sources.list.d/docker.list
+          apt-get update -qq
+          apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+          systemctl enable --now docker
+
+          mkdir -p /opt/n8n
+          chmod 700 /opt/n8n
+
+          if [ ! -f /opt/n8n/.env ]; then
+            umask 077
+            cat > /opt/n8n/.env <<EOF
+          POSTGRES_PASSWORD=$(openssl rand -hex 24)
+          N8N_ENCRYPTION_KEY=$(openssl rand -hex 32)
+          EOF
+          fi
+
+          cat > /opt/n8n/compose.yml <<'EOF'
+          services:
+            postgres:
+              image: postgres:16-alpine
+              restart: unless-stopped
+              environment:
+                POSTGRES_USER: n8n
+                POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+                POSTGRES_DB: n8n
+              volumes:
+                - postgres_data:/var/lib/postgresql/data
+              healthcheck:
+                test: ["CMD-SHELL", "pg_isready -U n8n -d n8n"]
+                interval: 5s
+                timeout: 5s
+                retries: 20
+
+            n8n:
+              image: docker.n8n.io/n8nio/n8n:latest
+              restart: unless-stopped
+              depends_on:
+                postgres:
+                  condition: service_healthy
+              ports:
+                - "127.0.0.1:5678:5678"
+              environment:
+                DB_TYPE: postgresdb
+                DB_POSTGRESDB_HOST: postgres
+                DB_POSTGRESDB_PORT: 5432
+                DB_POSTGRESDB_DATABASE: n8n
+                DB_POSTGRESDB_USER: n8n
+                DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+                N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+                GENERIC_TIMEZONE: Asia/Tehran
+                TZ: Asia/Tehran
+              volumes:
+                - n8n_data:/home/node/.n8n
+
+          volumes:
+            postgres_data:
+            n8n_data:
+          EOF
+
+          cd /opt/n8n
+          docker compose pull -q
+          docker compose up -d
+
+          ok=0
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:5678/healthz >/dev/null 2>&1; then
+              ok=1
+              break
+            fi
+            sleep 3
+          done
+          test "$ok" = "1"
+
+          docker --version > /tmp/docker_version.txt
+          docker compose version > /tmp/compose_version.txt
+          docker compose ps --format json > /tmp/n8n_ps.json
+          REMOTE
+
+      - name: Verify n8n health
+        id: verify
+        continue-on-error: true
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+        run: |
+          sshpass -e ssh -o ConnectTimeout=20 -p "$VPS_PORT" -o BatchMode=no -o PasswordAuthentication=yes "$VPS_USER@$VPS_HOST" \
+            'curl -fsS http://127.0.0.1:5678/healthz && echo && docker --version && docker compose version' > /tmp/n8n_verify.txt 2>/tmp/n8n_verify_err.txt
+
+      - name: Write sanitized result
+        env:
+          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, os, datetime
+          def read(p):
+              x=pathlib.Path(p)
+              return x.read_text(errors='ignore').strip() if x.exists() else ''
+          data={
+            'install_ok': os.environ.get('DEPLOY_OUTCOME')=='success',
+            'health_ok': os.environ.get('VERIFY_OUTCOME')=='success',
+            'verify': read('/tmp/n8n_verify.txt')[:500],
+            'error': read('/tmp/n8n_verify_err.txt')[-300:],
+            'checked_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat()
+          }
+          pathlib.Path('vps-n8n-install-result.json').write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n')
+          PY
+
+      - name: Commit result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add vps-n8n-install-result.json
+          git commit -m "Record n8n VPS install result" || exit 0
+          git push
