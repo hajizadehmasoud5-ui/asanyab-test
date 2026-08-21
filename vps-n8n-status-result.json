@@ -1,6 +1,6 @@
 {
-  "status": "",
-  "error": "",
-  "exit_code": "6",
-  "checked_at_utc": "2026-08-21T17:36:21.539248+00:00"
+  "status": "SSH_OK\nDOCKER_INSTALLED\nDocker version 29.7.2, build a7dcaa6\nDocker Compose version v5.5.0\nCOMPOSE_FILE_PRESENT\nNAME             IMAGE                            COMMAND                  SERVICE    CREATED              STATUS                        PORTS\nn8n-n8n-1        docker.n8n.io/n8nio/n8n:latest   \"tini -- /docker-ent…\"   n8n        About a minute ago   Up About a minute             127.0.0.1:5678->5678/tcp\nn8n-postgres-1   postgres:16-alpine               \"docker-entrypoint.s…\"   postgres   About a minute ago   Up About a minute (healthy)   5432/tcp\nN8N_HEALTH_OK",
+  "error": "Warning: Permanently added '5.75.200.96' (ED25519) to the list of known hosts.",
+  "exit_code": "0",
+  "checked_at_utc": "2026-08-21T17:37:12.766840+00:00"
 }
