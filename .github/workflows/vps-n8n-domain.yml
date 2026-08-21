@@ -38,7 +38,7 @@ jobs:
           rec_json=$(curl -fsS -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" \
             "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=n8n.drlinq.ir")
           rec_id=$(echo "$rec_json" | jq -r '.result[0].id // empty')
-          payload=$(jq -nc --arg ip "$VPS_HOST" '{type:"A",name:"n8n",content:$ip,ttl:120,proxied:false}')
+          payload=$(jq -nc --arg ip "$VPS_HOST" '{type:"A",name:"n8n",content:$ip,ttl:1,proxied:true}')
 
           if [ -n "$rec_id" ]; then
             out=$(curl -fsS -X PUT -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" \
