@@ -1,0 +1,45 @@
+name: Cloudflare Referral Preview
+
+on:
+  push:
+    branches:
+      - cloudflare-connect
+    paths:
+      - 'referral-fast.html'
+      - 'dr.shahmoradi.endodontist/**'
+      - '.github/workflows/cloudflare-referral-preview.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy-referral-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify Shahmoradi specialist record
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS 'https://python-0jatcc.cldv.dev/alanoffer/api/referral/c/dr-shahmoradi-endodontist' > /tmp/shahmoradi.json
+          python - <<'PY'
+          import json
+          d=json.load(open('/tmp/shahmoradi.json'))
+          assert d.get('ok') is True
+          assert (d.get('specialist') or {}).get('name') == 'دکتر محسن شاهمرادی'
+          print('specialist_record_ok=true')
+          PY
+
+      - name: Build referral preview bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf cf-pages-dist
+          mkdir -p cf-pages-dist/dr.shahmoradi.endodontist
+          cp index.html robots.txt sitemap.xml referral-fast.html cf-pages-dist/
+          cp dr.shahmoradi.endodontist/index.html cf-pages-dist/dr.shahmoradi.endodontist/index.html
+
+      - name: Deploy referral bundle to Cloudflare Pages production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx --yes wrangler@latest pages deploy cf-pages-dist --project-name=drlinq --branch=main

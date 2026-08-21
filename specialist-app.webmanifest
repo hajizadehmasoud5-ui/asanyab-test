@@ -1,0 +1,20 @@
+{
+  "name": "دکتر لینک | پنل متخصص",
+  "short_name": "پنل متخصص",
+  "description": "پنل مدیریت ارجاع‌های تخصصی دکتر لینک",
+  "lang": "fa",
+  "dir": "rtl",
+  "start_url": "/shahmoradi-panel.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f8fb",
+  "theme_color": "#0f1f38",
+  "icons": [
+    {
+      "src": "/specialist-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
