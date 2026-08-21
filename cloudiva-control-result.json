@@ -1,11 +1,11 @@
 {
   "service": "python-0jatcc",
-  "action": "status",
+  "action": "deploy",
   "workflow_status": "success",
   "detail": "",
   "backend_ok": true,
   "backend_version": "0.4.0",
-  "run_id": "32471255354",
-  "commit_sha": "7173bcafefc7ada91a898cd9be89caf7da72c40d",
-  "checked_at_utc": "2026-08-21T10:09:00.634678+00:00"
+  "run_id": "32472557602",
+  "commit_sha": "8cdab76078a7599f2b26c003950957043c3a729f",
+  "checked_at_utc": "2026-08-21T10:26:03.526343+00:00"
 }
