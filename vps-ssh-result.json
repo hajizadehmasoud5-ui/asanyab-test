@@ -1,9 +1,9 @@
 {
   "ssh_ok": false,
-  "using": "new_root_password",
+  "using": "initial_root_password",
   "os": "",
-  "error": "authentication_failed",
-  "exit_code": "5",
-  "detail": "Permission denied, please try again.",
-  "checked_at_utc": "2026-08-21T16:11:25.225913+00:00"
+  "error": "password_change_required",
+  "exit_code": "1",
+  "detail": "You are required to change your password immediately (administrator enforced). | WARNING: Your password has expired. | Password change required but no TTY available.",
+  "checked_at_utc": "2026-08-21T17:25:08.208209+00:00"
 }
