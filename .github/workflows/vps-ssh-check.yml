@@ -7,17 +7,24 @@ on:
       - '.github/workflows/vps-ssh-check.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
+
       - name: Install SSH password helper
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass
 
       - name: Check SSH access
+        id: sshcheck
+        continue-on-error: true
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
@@ -26,4 +33,31 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          sshpass -e ssh -p "$VPS_PORT" -o BatchMode=no -o PasswordAuthentication=yes "$VPS_USER@$VPS_HOST" 'echo VPS_SSH_OK && uname -a && id -u'
+          sshpass -e ssh -p "$VPS_PORT" -o BatchMode=no -o PasswordAuthentication=yes "$VPS_USER@$VPS_HOST" 'uname -srm' > /tmp/vps_os.txt
+
+      - name: Write sanitized result
+        env:
+          OUTCOME: ${{ steps.sshcheck.outcome }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, datetime
+          ok = os.environ.get('OUTCOME') == 'success'
+          os_text = ''
+          p = pathlib.Path('/tmp/vps_os.txt')
+          if ok and p.exists():
+              os_text = p.read_text().strip()[:200]
+          data = {
+              'ssh_ok': ok,
+              'os': os_text,
+              'checked_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat()
+          }
+          pathlib.Path('vps-ssh-result.json').write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n')
+          PY
+
+      - name: Commit sanitized result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add vps-ssh-result.json
+          git commit -m "Record VPS SSH check result" || exit 0
+          git push
