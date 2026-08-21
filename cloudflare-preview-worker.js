@@ -36,6 +36,17 @@ export default {
       headers.set('Cache-Control','no-store');
       return new Response(resp.body,{status:resp.status,statusText:resp.statusText,headers});
     }
-    return env.ASSETS.fetch(request);
+
+    const asset=await env.ASSETS.fetch(request);
+    const type=asset.headers.get('content-type')||'';
+    if(type.includes('text/html')){
+      let html=await asset.text();
+      html=html.split(UPSTREAM).join('/api/referral');
+      const headers=new Headers(asset.headers);
+      headers.set('Cache-Control','no-store');
+      headers.delete('content-length');
+      return new Response(html,{status:asset.status,statusText:asset.statusText,headers});
+    }
+    return asset;
   }
 };
