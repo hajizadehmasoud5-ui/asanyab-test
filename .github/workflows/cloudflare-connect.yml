@@ -85,6 +85,7 @@ jobs:
           mkdir -p cf-pages-dist/dr.shahmoradi.endodontist
           cp index.html robots.txt sitemap.xml referral-fast.html cf-pages-dist/
           cp dr.shahmoradi.endodontist/index.html cf-pages-dist/dr.shahmoradi.endodontist/index.html
+          cp cloudflare-preview-worker.js cf-pages-dist/_worker.js
 
       - name: Deploy DrLinq preview to Cloudflare Pages
         env:
