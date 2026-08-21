@@ -15,7 +15,11 @@ from drlinq_secretary import create_drlinq_secretary_blueprint
 from drlinq_assistant import create_drlinq_assistant_blueprint
 from drlinq_referral import create_drlinq_referral_blueprint
 from drlinq_referral_short import create_drlinq_referral_short_blueprint
-from drlinq_push import create_drlinq_push_blueprint
+try:
+    from drlinq_push import create_drlinq_push_blueprint
+except ModuleNotFoundError:
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'pywebpush>=2.0,<3', 'cryptography>=42,<47'])
+    from drlinq_push import create_drlinq_push_blueprint
 
 ROOT = Path(__file__).resolve().parent
 DATA_ROOT = Path(os.environ.get('DATA_ROOT', '/data'))
