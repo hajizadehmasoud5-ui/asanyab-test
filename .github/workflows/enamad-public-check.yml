@@ -14,50 +14,83 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check public Enamad markers
+      - name: Diagnose public Enamad visibility
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p status
-          title=''
-          meta=''
-          file_code='000'
-          file_body=''
-          for i in $(seq 1 24); do
-            html="$(curl -LsS --connect-timeout 8 --max-time 20 https://drlinq.ir/ || true)"
-            title="$(printf '%s' "$html" | grep -oPm1 '(?<=<title>)[^<]+' || true)"
-            meta="$(printf '%s' "$html" | grep -oPm1 '<meta\s+name=[\"\x27]enamad[\"\x27]\s+content=[\"\x27]20460348[\"\x27]\s*/?>' || true)"
-            file_code="$(curl -LsS -o /tmp/enamad.txt -w '%{http_code}' --connect-timeout 8 --max-time 20 https://drlinq.ir/20460348.txt || true)"
-            file_body="$(cat /tmp/enamad.txt 2>/dev/null || true)"
-            if [ "$title" = '20460348' ] && [ -n "$meta" ] && [ "$file_code" = '200' ]; then
-              break
-            fi
-            sleep 5
-          done
-          TITLE="$title" META="$meta" FILE_CODE="$file_code" FILE_BODY="$file_body" python3 - <<'PY'
-          import json, os
+          python3 - <<'PY'
+          import json, subprocess, re
           from pathlib import Path
-          title=os.environ.get('TITLE','')
-          meta=os.environ.get('META','')
-          file_code=os.environ.get('FILE_CODE','')
-          file_body=os.environ.get('FILE_BODY','')
+
+          code='20460348'
+          expected_meta=f'<meta name="enamad" content="{code}"/>'
+          urls=[
+              'http://drlinq.ir/',
+              'https://drlinq.ir/',
+              'http://www.drlinq.ir/',
+              'https://www.drlinq.ir/',
+          ]
+          ips=['185.199.108.153','185.199.109.153','185.199.110.153','185.199.111.153']
+          user_agents=[
+              'curl/8.0',
+              'Mozilla/5.0',
+              'enamad-verifier',
+          ]
+
+          def run(cmd):
+              p=subprocess.run(cmd, text=True, capture_output=True)
+              return p.returncode, p.stdout, p.stderr
+
+          checks=[]
+          for url in urls:
+              for ua in user_agents:
+                  rc,out,err=run(['curl','-LksS','--connect-timeout','8','--max-time','20','-A',ua,'-w','\n__HTTP__:%{http_code}\n__FINAL__:%{url_effective}','--',url])
+                  m=re.search(r'\n__HTTP__:(\d+)\n__FINAL__:(.*)$',out,re.S)
+                  body=out[:m.start()] if m else out
+                  http=m.group(1) if m else '000'
+                  final=m.group(2).strip() if m else ''
+                  title=(re.search(r'<title>(.*?)</title>',body,re.I|re.S) or [None,''])[1].strip() if re.search(r'<title>(.*?)</title>',body,re.I|re.S) else ''
+                  checks.append({
+                      'kind':'url','url':url,'user_agent':ua,'http':http,'final_url':final,
+                      'title':title,'meta_exact':expected_meta in body,
+                      'meta_loose':bool(re.search(r'<meta\s+name=["\']enamad["\']\s+content=["\']20460348["\']\s*/?>',body,re.I)),
+                      'body_has_code':code in body,
+                      'error':err.strip()[:300],
+                  })
+
+          for ip in ips:
+              rc,out,err=run(['curl','-ksS','--connect-timeout','8','--max-time','20','--resolve',f'drlinq.ir:443:{ip}','-w','\n__HTTP__:%{http_code}','https://drlinq.ir/'])
+              m=re.search(r'\n__HTTP__:(\d+)$',out,re.S)
+              body=out[:m.start()] if m else out
+              http=m.group(1) if m else '000'
+              title=(re.search(r'<title>(.*?)</title>',body,re.I|re.S) or [None,''])[1].strip() if re.search(r'<title>(.*?)</title>',body,re.I|re.S) else ''
+              checks.append({
+                  'kind':'direct_ip','ip':ip,'http':http,'title':title,
+                  'meta_exact':expected_meta in body,
+                  'meta_loose':bool(re.search(r'<meta\s+name=["\']enamad["\']\s+content=["\']20460348["\']\s*/?>',body,re.I)),
+                  'body_has_code':code in body,
+                  'error':err.strip()[:300],
+              })
+
+          rc,out,err=run(['curl','-LksS','--connect-timeout','8','--max-time','20','-w','\n__HTTP__:%{http_code}','https://drlinq.ir/20460348.txt'])
+          m=re.search(r'\n__HTTP__:(\d+)$',out,re.S)
+          fbody=out[:m.start()] if m else out
+          fhttp=m.group(1) if m else '000'
+
           data={
-            'operation':'enamad-public-check',
-            'domain':'drlinq.ir',
-            'public_title':title,
-            'public_meta_present': bool(meta),
-            'verification_file_http_code':file_code,
-            'verification_file_body':file_body[:200],
-            'ready_for_title_confirmation': title=='20460348',
-            'ready_for_meta_confirmation': bool(meta),
-            'ready_for_file_confirmation': file_code=='200' and '20460348' in file_body,
+              'operation':'enamad-deep-diagnostic',
+              'expected_meta':expected_meta,
+              'checks':checks,
+              'verification_file':{'http':fhttp,'body':fbody[:200],'ok':fhttp=='200' and code in fbody},
+              'all_https_root_ok':all(c.get('http')=='200' and c.get('title')==code and c.get('meta_loose') for c in checks if c.get('kind')=='direct_ip'),
           }
-          Path('status/enamad-public-check.json').write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n')
+          Path('status/enamad-deep-diagnostic.json').write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n')
           PY
       - name: Commit result
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add status/enamad-public-check.json
-          git commit -m 'Record Enamad public verification check' || true
+          git add status/enamad-deep-diagnostic.json
+          git commit -m 'Record Enamad deep diagnostic' || true
           git push
