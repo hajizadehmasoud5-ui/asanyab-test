@@ -14,37 +14,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check public title and verification file
+      - name: Check public Enamad markers
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p status
           title=''
+          meta=''
           file_code='000'
           file_body=''
           for i in $(seq 1 24); do
             html="$(curl -LsS --connect-timeout 8 --max-time 20 https://drlinq.ir/ || true)"
             title="$(printf '%s' "$html" | grep -oPm1 '(?<=<title>)[^<]+' || true)"
+            meta="$(printf '%s' "$html" | grep -oPm1 '<meta\s+name=[\"\x27]enamad[\"\x27]\s+content=[\"\x27]20460348[\"\x27]\s*/?>' || true)"
             file_code="$(curl -LsS -o /tmp/enamad.txt -w '%{http_code}' --connect-timeout 8 --max-time 20 https://drlinq.ir/20460348.txt || true)"
             file_body="$(cat /tmp/enamad.txt 2>/dev/null || true)"
-            if [ "$title" = '20460348' ] && [ "$file_code" = '200' ]; then
+            if [ "$title" = '20460348' ] && [ -n "$meta" ] && [ "$file_code" = '200' ]; then
               break
             fi
             sleep 5
           done
-          TITLE="$title" FILE_CODE="$file_code" FILE_BODY="$file_body" python3 - <<'PY'
+          TITLE="$title" META="$meta" FILE_CODE="$file_code" FILE_BODY="$file_body" python3 - <<'PY'
           import json, os
           from pathlib import Path
           title=os.environ.get('TITLE','')
+          meta=os.environ.get('META','')
           file_code=os.environ.get('FILE_CODE','')
           file_body=os.environ.get('FILE_BODY','')
           data={
             'operation':'enamad-public-check',
             'domain':'drlinq.ir',
             'public_title':title,
+            'public_meta_present': bool(meta),
             'verification_file_http_code':file_code,
             'verification_file_body':file_body[:200],
             'ready_for_title_confirmation': title=='20460348',
+            'ready_for_meta_confirmation': bool(meta),
             'ready_for_file_confirmation': file_code=='200' and '20460348' in file_body,
           }
           Path('status/enamad-public-check.json').write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n')
