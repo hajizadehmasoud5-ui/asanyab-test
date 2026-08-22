@@ -1,0 +1,55 @@
+name: Apply Enamad badge
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'enamad-badge-request.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install official Enamad badge and restore site title
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+
+          text = text.replace('<title>20460348</title>', '<title>دکترلینک | انتخاب درمان بر اساس شرایط تو</title>')
+          text = text.replace('<meta name="enamad" content="20460348"/>\n', '')
+          text = text.replace('<meta name="enamad" content="20460348"/>', '')
+
+          badge = "<a referrerpolicy='origin' target='_blank' href='https://trustseal.enamad.ir/?id=7425666&Code=zTnem8b787YrjX4UhzReTfJOyjzxoh3t'><img referrerpolicy='origin' src='https://trustseal.enamad.ir/logo.aspx?id=7425666&Code=zTnem8b787YrjX4UhzReTfJOyjzxoh3t' alt='' style='cursor:pointer' code='zTnem8b787YrjX4UhzReTfJOyjzxoh3t'></a>"
+
+          if badge not in text:
+              marker = '</body>'
+              if marker not in text:
+                  raise SystemExit('Could not find </body> in index.html')
+              block = '\n<div id="enamad-badge" style="text-align:center;padding:18px 12px">\n' + badge + '\n</div>\n'
+              text = text.replace(marker, block + marker, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Commit changes
+        shell: bash
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Add official Enamad trust badge"
+          git push
