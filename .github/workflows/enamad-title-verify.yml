@@ -26,14 +26,18 @@ jobs:
           text = p.read_text()
           original = 'دکترلینک | انتخاب درمان بر اساس شرایط تو'
           code = '20460348'
-          meta = f'<meta name="enamad" content="{code}" />'
+          meta = f'<meta name="enamad" content="{code}"/>'
 
           if mode == 'set':
               text, n = re.subn(r'<title>.*?</title>', f'<title>{code}</title>', text, count=1, flags=re.S)
               if n != 1:
                   raise SystemExit('title tag not found exactly once')
           elif mode == 'meta':
-              if 'name="enamad"' not in text:
+              if 'name="enamad"' in text:
+                  text, n = re.subn(r'<meta\s+name="enamad"\s+content="20460348"\s*/?>', meta, text, count=1)
+                  if n != 1:
+                      raise SystemExit('existing enamad tag could not be normalized')
+              else:
                   text, n = re.subn(r'(<title>.*?</title>)', r'\1\n' + meta, text, count=1, flags=re.S)
                   if n != 1:
                       raise SystemExit('title tag not found exactly once')
@@ -41,7 +45,7 @@ jobs:
               text, n = re.subn(r'<title>.*?</title>', f'<title>{original}</title>', text, count=1, flags=re.S)
               if n != 1:
                   raise SystemExit('title tag not found exactly once')
-              text = re.sub(r'\n?<meta name="enamad" content="20460348"\s*/?>', '', text, count=1)
+              text = re.sub(r'\n?<meta\s+name="enamad"\s+content="20460348"\s*/?>', '', text, count=1)
           else:
               raise SystemExit('invalid mode')
 
