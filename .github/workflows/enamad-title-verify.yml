@@ -1,4 +1,4 @@
-name: Enamad title verification
+name: Enamad verification
 
 on:
   push:
@@ -10,11 +10,11 @@ permissions:
   contents: write
 
 jobs:
-  update-title:
+  update-verification:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply temporary Enamad title
+      - name: Apply Enamad verification marker
         run: |
           python3 - <<'PY'
           import json, re
@@ -26,23 +26,32 @@ jobs:
           text = p.read_text()
           original = 'دکترلینک | انتخاب درمان بر اساس شرایط تو'
           code = '20460348'
+          meta = f'<meta name="enamad" content="{code}" />'
 
           if mode == 'set':
               text, n = re.subn(r'<title>.*?</title>', f'<title>{code}</title>', text, count=1, flags=re.S)
+              if n != 1:
+                  raise SystemExit('title tag not found exactly once')
+          elif mode == 'meta':
+              if 'name="enamad"' not in text:
+                  text, n = re.subn(r'(<title>.*?</title>)', r'\1\n' + meta, text, count=1, flags=re.S)
+                  if n != 1:
+                      raise SystemExit('title tag not found exactly once')
           elif mode == 'restore':
               text, n = re.subn(r'<title>.*?</title>', f'<title>{original}</title>', text, count=1, flags=re.S)
+              if n != 1:
+                  raise SystemExit('title tag not found exactly once')
+              text = re.sub(r'\n?<meta name="enamad" content="20460348"\s*/?>', '', text, count=1)
           else:
               raise SystemExit('invalid mode')
 
-          if n != 1:
-              raise SystemExit('title tag not found exactly once')
           p.write_text(text)
           PY
 
-      - name: Commit title change
+      - name: Commit verification change
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html
-          git commit -m 'Temporarily update title for Enamad verification' || true
+          git commit -m 'Update Enamad verification marker' || true
           git push
