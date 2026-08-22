@@ -1,0 +1,196 @@
+{
+  "operation": "enamad-deep-diagnostic",
+  "expected_meta": "<meta name=\"enamad\" content=\"20460348\"/>",
+  "checks": [
+    {
+      "kind": "url",
+      "url": "http://drlinq.ir/",
+      "user_agent": "curl/8.0",
+      "http": "200",
+      "final_url": "https://drlinq.ir/",
+      "title": "20460348",
+      "meta_exact": true,
+      "meta_loose": true,
+      "body_has_code": true,
+      "error": ""
+    },
+    {
+      "kind": "url",
+      "url": "http://drlinq.ir/",
+      "user_agent": "Mozilla/5.0",
+      "http": "200",
+      "final_url": "https://drlinq.ir/",
+      "title": "20460348",
+      "meta_exact": true,
+      "meta_loose": true,
+      "body_has_code": true,
+      "error": ""
+    },
+    {
+      "kind": "url",
+      "url": "http://drlinq.ir/",
+      "user_agent": "enamad-verifier",
+      "http": "200",
+      "final_url": "https://drlinq.ir/",
+      "title": "20460348",
+      "meta_exact": true,
+      "meta_loose": true,
+      "body_has_code": true,
+      "error": ""
+    },
+    {
+      "kind": "url",
+      "url": "https://drlinq.ir/",
+      "user_agent": "curl/8.0",
+      "http": "200",
+      "final_url": "https://drlinq.ir/",
+      "title": "20460348",
+      "meta_exact": true,
+      "meta_loose": true,
+      "body_has_code": true,
+      "error": ""
+    },
+    {
+      "kind": "url",
+      "url": "https://drlinq.ir/",
+      "user_agent": "Mozilla/5.0",
+      "http": "200",
+      "final_url": "https://drlinq.ir/",
+      "title": "20460348",
+      "meta_exact": true,
+      "meta_loose": true,
+      "body_has_code": true,
+      "error": ""
+    },
+    {
+      "kind": "url",
+      "url": "https://drlinq.ir/",
+      "user_agent": "enamad-verifier",
+      "http": "200",
+      "final_url": "https://drlinq.ir/",
+      "title": "20460348",
+      "meta_exact": true,
+      "meta_loose": true,
+      "body_has_code": true,
+      "error": ""
+    },
+    {
+      "kind": "url",
+      "url": "http://www.drlinq.ir/",
+      "user_agent": "curl/8.0",
+      "http": "200",
+      "final_url": "https://drlinq.ir/",
+      "title": "20460348",
+      "meta_exact": true,
+      "meta_loose": true,
+      "body_has_code": true,
+      "error": ""
+    },
+    {
+      "kind": "url",
+      "url": "http://www.drlinq.ir/",
+      "user_agent": "Mozilla/5.0",
+      "http": "200",
+      "final_url": "https://drlinq.ir/",
+      "title": "20460348",
+      "meta_exact": true,
+      "meta_loose": true,
+      "body_has_code": true,
+      "error": ""
+    },
+    {
+      "kind": "url",
+      "url": "http://www.drlinq.ir/",
+      "user_agent": "enamad-verifier",
+      "http": "200",
+      "final_url": "https://drlinq.ir/",
+      "title": "20460348",
+      "meta_exact": true,
+      "meta_loose": true,
+      "body_has_code": true,
+      "error": ""
+    },
+    {
+      "kind": "url",
+      "url": "https://www.drlinq.ir/",
+      "user_agent": "curl/8.0",
+      "http": "200",
+      "final_url": "https://drlinq.ir/",
+      "title": "20460348",
+      "meta_exact": true,
+      "meta_loose": true,
+      "body_has_code": true,
+      "error": ""
+    },
+    {
+      "kind": "url",
+      "url": "https://www.drlinq.ir/",
+      "user_agent": "Mozilla/5.0",
+      "http": "200",
+      "final_url": "https://drlinq.ir/",
+      "title": "20460348",
+      "meta_exact": true,
+      "meta_loose": true,
+      "body_has_code": true,
+      "error": ""
+    },
+    {
+      "kind": "url",
+      "url": "https://www.drlinq.ir/",
+      "user_agent": "enamad-verifier",
+      "http": "200",
+      "final_url": "https://drlinq.ir/",
+      "title": "20460348",
+      "meta_exact": true,
+      "meta_loose": true,
+      "body_has_code": true,
+      "error": ""
+    },
+    {
+      "kind": "direct_ip",
+      "ip": "185.199.108.153",
+      "http": "200",
+      "title": "20460348",
+      "meta_exact": true,
+      "meta_loose": true,
+      "body_has_code": true,
+      "error": ""
+    },
+    {
+      "kind": "direct_ip",
+      "ip": "185.199.109.153",
+      "http": "200",
+      "title": "20460348",
+      "meta_exact": true,
+      "meta_loose": true,
+      "body_has_code": true,
+      "error": ""
+    },
+    {
+      "kind": "direct_ip",
+      "ip": "185.199.110.153",
+      "http": "200",
+      "title": "20460348",
+      "meta_exact": true,
+      "meta_loose": true,
+      "body_has_code": true,
+      "error": ""
+    },
+    {
+      "kind": "direct_ip",
+      "ip": "185.199.111.153",
+      "http": "200",
+      "title": "20460348",
+      "meta_exact": true,
+      "meta_loose": true,
+      "body_has_code": true,
+      "error": ""
+    }
+  ],
+  "verification_file": {
+    "http": "200",
+    "body": "20460348\n",
+    "ok": true
+  },
+  "all_https_root_ok": true
+}
