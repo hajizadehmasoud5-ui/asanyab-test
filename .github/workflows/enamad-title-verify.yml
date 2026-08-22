@@ -1,0 +1,48 @@
+name: Enamad title verification
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - enamad-title-request.json
+
+permissions:
+  contents: write
+
+jobs:
+  update-title:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply temporary Enamad title
+        run: |
+          python3 - <<'PY'
+          import json, re
+          from pathlib import Path
+
+          req = json.loads(Path('enamad-title-request.json').read_text())
+          mode = req.get('mode')
+          p = Path('index.html')
+          text = p.read_text()
+          original = 'دکترلینک | انتخاب درمان بر اساس شرایط تو'
+          code = '20460348'
+
+          if mode == 'set':
+              text, n = re.subn(r'<title>.*?</title>', f'<title>{code}</title>', text, count=1, flags=re.S)
+          elif mode == 'restore':
+              text, n = re.subn(r'<title>.*?</title>', f'<title>{original}</title>', text, count=1, flags=re.S)
+          else:
+              raise SystemExit('invalid mode')
+
+          if n != 1:
+              raise SystemExit('title tag not found exactly once')
+          p.write_text(text)
+          PY
+
+      - name: Commit title change
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Temporarily update title for Enamad verification' || true
+          git push
