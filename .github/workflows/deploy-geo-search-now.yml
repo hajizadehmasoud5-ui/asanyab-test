@@ -1,5 +1,6 @@
 name: Deploy Geo Search Now
 
+# retry after source-city deduplication
 on:
   push:
     branches: [main]
