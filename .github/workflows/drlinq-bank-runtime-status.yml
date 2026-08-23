@@ -38,8 +38,12 @@ jobs:
           echo "BANK_COMPOSE=$([ -f /opt/drlinq/bank-compose.yml ] && echo yes || echo no)"
           echo "CADDY_ROUTE=$(grep -c 'handle_path /bank/\*' /opt/drlinq/Caddyfile 2>/dev/null || true)"
           docker ps --format '{{.Names}}|{{.Status}}' | grep 'drlinq-bank-api' || true
-          curl -L -sS --max-time 15 -o /tmp/h -w 'PUBLIC_HTTP=%{http_code}\n' https://n8n.drlinq.ir/bank/health || true
-          cat /tmp/h 2>/dev/null | head -c 500 || true
+          curl -L -sS --max-time 15 -o /tmp/h -w 'HEALTH_HTTP=%{http_code}\n' https://n8n.drlinq.ir/bank/health || true
+          cat /tmp/h 2>/dev/null | head -c 300 || true
+          echo
+          curl -L -sS --max-time 15 -o /tmp/v -w 'VIEW_HTTP=%{http_code}\n' https://n8n.drlinq.ir/bank/view || true
+          grep -o '<title>[^<]*</title>' /tmp/v 2>/dev/null | head -n1 || true
+          grep -o 'بانک مراکز دکترلینک' /tmp/v 2>/dev/null | head -n1 || true
           echo
           REMOTE
       - name: Write status
