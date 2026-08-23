@@ -1,5 +1,6 @@
 import os
 import re
+from collections import defaultdict
 from contextlib import contextmanager
 from html import escape
 from pathlib import Path
@@ -10,7 +11,7 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="DrLinq Provider Bank", version="0.6.0")
+app = FastAPI(title="DrLinq Provider Bank", version="0.7.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://drlinq.ir", "https://www.drlinq.ir"],
@@ -56,6 +57,94 @@ LEFT JOIN bank_service_aliases sa ON sa.normalized_alias=s.normalized_name
 LEFT JOIN bank_services canonical ON canonical.id=sa.service_id
 """
 SERVICE_NORM_EXPR = "COALESCE(canonical.normalized_name, s.normalized_name)"
+
+SERVICE_GROUP_ORDER = [
+    "پزشکی",
+    "دندانپزشکی",
+    "آزمایشگاه و تشخیص",
+    "تصویربرداری",
+    "توانبخشی",
+    "داروخانه و تجهیزات",
+    "مراکز و خدمات درمانی",
+    "سایر",
+]
+
+
+def service_group(name: str) -> str:
+    n = norm(name)
+
+    dental_terms = (
+        "دندان", "ارتودن", "ایمپلنت", "درمان ریشه", "پریودنت", "لثه",
+        "دهان و فک", "دهان فک", "پروتز دندان",
+    )
+    if any(x in n for x in dental_terms):
+        return "دندانپزشکی"
+
+    imaging_terms = (
+        "mri", "ام آر آی", "pet scan", "پت اسکن", "رادیولوژی", "سونوگرافی",
+        "سی تی", "ماموگرافی", "تراکم استخوان", "پزشکی هسته", "آنژیوگرافی",
+        "اکوکاردیوگرافی",
+    )
+    if any(x in n for x in imaging_terms):
+        return "تصویربرداری"
+
+    diagnostic_terms = (
+        "آزمایشگاه", "پاتولوژی", "ژنتیک", "آندوسکوپی", "کولونوسکوپی",
+        "نوار قلب", "هولتر", "کلینیک خواب",
+    )
+    if any(x in n for x in diagnostic_terms):
+        return "آزمایشگاه و تشخیص"
+
+    rehab_terms = (
+        "فیزیوتراپی", "کاردرمانی", "گفتار", "توانبخشی", "شنوایی سنجی",
+        "سمعک", "پزشکی ورزشی",
+    )
+    if any(x in n for x in rehab_terms):
+        return "توانبخشی"
+
+    pharmacy_equipment_terms = (
+        "داروخانه", "تجهیزات پزشکی", "ارتز", "عینک", "اپتومتری",
+    )
+    if any(x in n for x in pharmacy_equipment_terms):
+        return "داروخانه و تجهیزات"
+
+    facility_terms = (
+        "بیمارستان", "درمانگاه", "مطب", "مراکز سرپایی", "مرکز جراحی محدود",
+        "خدمات درمان در منزل", "خدمات پرستاری", "اورژانس غیر بحرانی",
+    )
+    if any(x in n for x in facility_terms):
+        return "مراکز و خدمات درمانی"
+
+    # تخصص‌های قلب، داخلی، زنان، اطفال، پوست، جراحی، کلیه، گوارش و ...
+    # همگی در گروه پزشکی باقی می‌مانند.
+    return "پزشکی"
+
+
+def grouped_service_options_html(values, selected_value: str) -> str:
+    groups = defaultdict(list)
+    seen = set()
+    for raw in values:
+        value = str(raw).strip()
+        if not value:
+            continue
+        key = norm(value)
+        if key in seen:
+            continue
+        seen.add(key)
+        groups[service_group(value)].append(value)
+
+    parts = ["<option value=''>انتخاب خدمت</option>"]
+    for group_name in SERVICE_GROUP_ORDER:
+        items = sorted(groups.get(group_name, []), key=norm)
+        if not items:
+            continue
+        parts.append(f"<optgroup label='{escape(group_name, quote=True)}'>")
+        for value in items:
+            safe = escape(value, quote=True)
+            selected = " selected" if value == selected_value else ""
+            parts.append(f"<option value='{safe}'{selected}>{safe}</option>")
+        parts.append("</optgroup>")
+    return "".join(parts)
 
 
 @app.get("/health")
@@ -313,7 +402,7 @@ select:disabled{{color:#98a2b3;cursor:not-allowed}}
     <div class='search-row'>
       <div class='field'>
         <label>خدمت / تخصص</label>
-        <div class='value'><span class='icon'>✚</span><select name='service' id='service'>{option_html(fs['services'], service, 'انتخاب خدمت')}</select></div>
+        <div class='value'><span class='icon'>✚</span><select name='service' id='service'>{grouped_service_options_html(fs['services'], service)}</select></div>
       </div>
       <div class='field'>
         <label>بیمه</label>
