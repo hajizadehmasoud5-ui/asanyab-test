@@ -1,0 +1,67 @@
+name: SinaNeo security health
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/sinaneo-security-health.yml'
+      - 'sinaneo-security-check.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify live security guard
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 8 --retry-delay 3 https://python-0jatcc.cldv.dev/security/health -o /tmp/security.json
+          python - <<'PY'
+          import json
+          d=json.load(open('/tmp/security.json',encoding='utf-8'))
+          if d.get('ok') is not True:
+              raise SystemExit('security_health_not_ok')
+          if d.get('rateLimit') is not True:
+              raise SystemExit('rate_limit_not_active')
+          PY
+
+      - name: Write sanitized result
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          RUN_ID: ${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json, os, datetime
+          d={}
+          try:
+              d=json.load(open('/tmp/security.json',encoding='utf-8'))
+          except Exception:
+              pass
+          out={
+              'workflow_status': os.environ.get('JOB_STATUS','unknown'),
+              'security_ok': d.get('ok') is True,
+              'rate_limit': d.get('rateLimit') is True,
+              'edge_lock': d.get('edgeLock') is True,
+              'turnstile': d.get('turnstile') is True,
+              'trust_cloudflare': d.get('trustCloudflare') is True,
+              'run_id': os.environ.get('RUN_ID',''),
+              'commit_sha': os.environ.get('COMMIT_SHA',''),
+              'checked_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat()
+          }
+          with open('sinaneo-security-result.json','w',encoding='utf-8') as f:
+              json.dump(out,f,ensure_ascii=False,indent=2)
+              f.write('\n')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add sinaneo-security-result.json
+          git diff --cached --quiet || git commit -m 'Record SinaNeo security health'
+          git push >/dev/null 2>&1
