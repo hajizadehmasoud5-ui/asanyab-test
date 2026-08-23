@@ -7,6 +7,7 @@ on:
       - 'bank_api/app.py'
       - 'bank_api/app_geo.py'
       - 'bank_api/normalize_geography.py'
+      - 'bank_api/fix_geo_aliases.py'
       - 'bank_api/schema.sql'
       - 'bank_api/requirements.txt'
       - 'bank_api/Containerfile'
@@ -58,13 +59,14 @@ jobs:
 
           echo 'GEOGRAPHY_NORMALIZATION:'
           docker exec drlinq-bank-api python /app/normalize_geography.py
+          docker exec drlinq-bank-api python /app/fix_geo_aliases.py
           echo
 
           echo 'HEALTH:'
           curl -fsS https://n8n.drlinq.ir/bank/health
           echo
           echo 'TEHRAN_CITIES_SAMPLE:'
-          curl -fsS 'https://n8n.drlinq.ir/bank/filters?province=تهران' | head -c 1500
+          curl -fsS -G 'https://n8n.drlinq.ir/bank/filters' --data-urlencode 'province=تهران' | head -c 1500
           echo
           echo 'ALBORZ_DENTISTRY_TEHRAN_VIEW_STATUS:'
           curl -fsS -G 'https://n8n.drlinq.ir/bank/view' \
