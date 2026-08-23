@@ -1,0 +1,90 @@
+name: Import Tehran Dental Discovery Batch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/import-dental-tehran.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install sshpass
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass
+      - name: Import validated dental providers
+        id: run
+        continue-on-error: true
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+        run: |
+          : "${VPS_PORT:=22}"
+          mkdir -p ~/.ssh
+          ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          sshpass -e ssh -o ConnectTimeout=20 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'mkdir -p /opt/drlinq/bank-api/import_batches'
+          sshpass -e scp -P "$VPS_PORT" -o ConnectTimeout=20 \
+            bank_api/import_discovered.py \
+            bank_api/backfill_tehran_regions.py \
+            bank_api/import_batches/dental_tehran_20260824.json \
+            "$VPS_USER@$VPS_HOST:/opt/drlinq/bank-api/import_batches/"
+          sshpass -e ssh -o ConnectTimeout=20 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'bash -s' > /tmp/import.txt 2>/tmp/import.err <<'REMOTE'
+          set -euo pipefail
+          echo 'COUNT_BEFORE:'
+          curl -fsS -G 'https://n8n.drlinq.ir/bank/providers' \
+            --data-urlencode 'service=دندانپزشکی' \
+            --data-urlencode 'province=تهران' \
+            --data-urlencode 'city=تهران' \
+            --data-urlencode 'limit=200' | python3 -c 'import sys,json; print(len(json.load(sys.stdin).get("items",[])))'
+
+          docker cp /opt/drlinq/bank-api/import_batches/import_discovered.py drlinq-bank-api:/app/import_discovered.py
+          docker cp /opt/drlinq/bank-api/import_batches/backfill_tehran_regions.py drlinq-bank-api:/app/backfill_tehran_regions.py
+          docker cp /opt/drlinq/bank-api/import_batches/dental_tehran_20260824.json drlinq-bank-api:/tmp/dental_tehran_20260824.json
+          echo 'IMPORT_RESULT:'
+          docker exec drlinq-bank-api python /app/import_discovered.py /tmp/dental_tehran_20260824.json \
+            --service 'دندانپزشکی' \
+            --source-name 'Google Maps Healthcare Discovery' \
+            --source-url 'https://www.google.com/maps' \
+            --source-type 'discovery'
+          echo 'REGION_BACKFILL:'
+          docker exec drlinq-bank-api python /app/backfill_tehran_regions.py
+          echo 'COUNT_AFTER:'
+          curl -fsS -G 'https://n8n.drlinq.ir/bank/providers' \
+            --data-urlencode 'service=دندانپزشکی' \
+            --data-urlencode 'province=تهران' \
+            --data-urlencode 'city=تهران' \
+            --data-urlencode 'limit=200' | python3 -c 'import sys,json; d=json.load(sys.stdin); print(len(d.get("items",[]))); print("NAMES_SAMPLE:"); [print(x.get("name")) for x in d.get("items",[])[:12]]'
+          echo 'FILTERS:'
+          curl -fsS -G 'https://n8n.drlinq.ir/bank/filters' \
+            --data-urlencode 'province=تهران' \
+            --data-urlencode 'city=تهران' | python3 -c 'import sys,json; print(json.load(sys.stdin).get("districts",[]))'
+          REMOTE
+      - name: Save status
+        env:
+          OUTCOME: ${{ steps.run.outcome }}
+        run: |
+          python3 - <<'PY'
+          import json,pathlib,os
+          def r(p):
+              x=pathlib.Path(p); return x.read_text(errors='ignore').strip() if x.exists() else ''
+          pathlib.Path('DRLINQ_DENTAL_TEHRAN_IMPORT_STATUS.json').write_text(json.dumps({
+              'ok':os.environ.get('OUTCOME')=='success','report':r('/tmp/import.txt')[-16000:],'error':r('/tmp/import.err')[-5000:]
+          },ensure_ascii=False,indent=2)+'\n')
+          PY
+      - name: Commit status
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DRLINQ_DENTAL_TEHRAN_IMPORT_STATUS.json
+          git commit -m "Record Tehran dental discovery import" || exit 0
+          git push
