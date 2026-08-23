@@ -1,0 +1,144 @@
+name: Deploy DrLinq Bank API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'bank_api/**'
+      - '.github/workflows/deploy-drlinq-bank-api.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install sshpass
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass
+
+      - name: Deploy bank API
+        id: deploy
+        continue-on-error: true
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+        run: |
+          : "${VPS_PORT:=22}"
+          mkdir -p ~/.ssh
+          ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+          sshpass -e ssh -o ConnectTimeout=20 -o BatchMode=no -o PasswordAuthentication=yes -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
+            'mkdir -p /opt/drlinq/bank-api'
+
+          sshpass -e scp -P "$VPS_PORT" -o ConnectTimeout=20 bank_api/app.py bank_api/schema.sql bank_api/requirements.txt bank_api/Containerfile \
+            "$VPS_USER@$VPS_HOST:/opt/drlinq/bank-api/"
+
+          sshpass -e ssh -o ConnectTimeout=20 -o BatchMode=no -o PasswordAuthentication=yes -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'bash -s' > /tmp/deploy.txt 2>/tmp/deploy.err <<'REMOTE'
+          set -euo pipefail
+          cd /opt/drlinq
+
+          cp Caddyfile "Caddyfile.pre-bank.$(date +%Y%m%d%H%M%S).bak"
+
+          cat > bank-compose.yml <<'EOF'
+          services:
+            bank-api:
+              build:
+                context: ./bank-api
+                dockerfile: Containerfile
+              container_name: drlinq-bank-api
+              restart: unless-stopped
+              env_file: .env
+              environment:
+                DB_HOST: postgres
+                DB_PORT: 5432
+                DB_NAME: ${POSTGRES_DB}
+                DB_USER: ${POSTGRES_USER}
+                DB_PASSWORD: ${POSTGRES_PASSWORD}
+              networks: [drlinq-internal]
+
+          networks:
+            drlinq-internal:
+              external: true
+          EOF
+
+          docker compose -f bank-compose.yml build --pull
+          docker compose -f bank-compose.yml up -d
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('/opt/drlinq/Caddyfile')
+          text = p.read_text()
+          if 'handle_path /bank/*' not in text:
+              pattern = r'n8n\.drlinq\.ir\s*\{\s*reverse_proxy\s+n8n:5678\s*\}'
+              replacement = '''n8n.drlinq.ir {
+            handle_path /bank/* {
+              reverse_proxy bank-api:8000
+            }
+            handle {
+              reverse_proxy n8n:5678
+            }
+          }'''
+              new_text, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
+              if count != 1:
+                  raise SystemExit('Could not locate n8n.drlinq.ir block safely')
+              p.write_text(new_text)
+          PY
+
+          docker exec drlinq-caddy caddy validate --config /etc/caddy/Caddyfile
+          docker exec drlinq-caddy caddy reload --config /etc/caddy/Caddyfile
+
+          ok=0
+          for i in $(seq 1 30); do
+            if docker exec drlinq-caddy wget -qO- http://bank-api:8000/health >/tmp/bank_health.json 2>/dev/null; then
+              ok=1
+              break
+            fi
+            sleep 2
+          done
+          test "$ok" = "1"
+
+          echo '--- local health ---'
+          cat /tmp/bank_health.json
+          echo
+          echo '--- public health ---'
+          curl -fsS --max-time 20 https://n8n.drlinq.ir/bank/health
+          echo
+          echo '--- public stats ---'
+          curl -fsS --max-time 20 https://n8n.drlinq.ir/bank/stats
+          echo
+          REMOTE
+
+      - name: Write deployment status
+        env:
+          OUTCOME: ${{ steps.deploy.outcome }}
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, os, datetime
+          def r(path):
+              p=pathlib.Path(path)
+              return p.read_text(errors='ignore').strip() if p.exists() else ''
+          pathlib.Path('DRLINQ_BANK_DEPLOY_STATUS.json').write_text(json.dumps({
+              'ok': os.environ.get('OUTCOME') == 'success',
+              'report': r('/tmp/deploy.txt')[-12000:],
+              'error': r('/tmp/deploy.err')[-3000:],
+              'checked_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+          }, ensure_ascii=False, indent=2) + '\n')
+          PY
+
+      - name: Commit deployment status
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DRLINQ_BANK_DEPLOY_STATUS.json
+          git commit -m "Record DrLinq bank API deployment" || exit 0
+          git push
