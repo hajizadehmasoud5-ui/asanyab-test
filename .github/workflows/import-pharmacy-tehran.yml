@@ -79,12 +79,12 @@ jobs:
           python3 - <<'PY'
           import json,pathlib,os,datetime
           def r(p):
-              x=pathlib.Path(p); return x.read_text(errors='ignore').strip() if x.exists() else ''
+            x=pathlib.Path(p); return x.read_text(errors='ignore').strip() if x.exists() else ''
           pathlib.Path('DRLINQ_PHARMACY_TEHRAN_IMPORT_STATUS.json').write_text(json.dumps({
-              'ok':os.environ.get('OUTCOME')=='success',
-              'report':r('/tmp/import.txt')[-16000:],
-              'error':r('/tmp/import.err')[-5000:],
-              'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'ok':os.environ.get('OUTCOME')=='success',
+            'report':r('/tmp/import.txt')[-16000:],
+            'error':r('/tmp/import.err')[-5000:],
+            'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
           },ensure_ascii=False,indent=2)+'\n')
           PY
       - name: Commit import status
@@ -94,3 +94,5 @@ jobs:
           git add DRLINQ_PHARMACY_TEHRAN_IMPORT_STATUS.json
           git commit -m "Record Tehran pharmacy discovery import" || exit 0
           git push
+
+# retrigger validated batch import
