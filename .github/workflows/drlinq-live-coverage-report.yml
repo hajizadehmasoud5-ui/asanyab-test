@@ -13,39 +13,60 @@ permissions:
 jobs:
   report:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Query live raw-provider coverage
+      - name: Install sshpass
         run: |
-          python - <<'PY'
-          import json,re,urllib.parse,urllib.request,datetime
-          services=['داروخانه','دندانپزشکی','آزمایشگاه','فیزیوتراپی','تصویربرداری پزشکی','بیمارستان','کلینیک پزشکی']
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass
+      - name: Query coverage inside live bank container
+        id: query
+        continue-on-error: true
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+        run: |
+          : "${VPS_PORT:=22}"
+          mkdir -p ~/.ssh
+          ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          sshpass -e ssh -o ConnectTimeout=20 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'docker exec drlinq-bank-api python -' > /tmp/coverage.json <<'PY'
+          import json,datetime
+          from app import selection_count
+          services=['داروخانه','دندانپزشکی','آزمایشگاه','فیزیوتراپی','رادیولوژی','بیمارستان','درمانگاه']
           cities=[('تهران','تهران'),('خوزستان','اهواز')]
           out={}
           for province,city in cities:
               key=f'{province}/{city}'
               out[key]={}
               for service in services:
-                  qs=urllib.parse.urlencode({'service':service,'province':province,'city':city})
-                  url='https://n8n.drlinq.ir/bank/view?'+qs
                   try:
-                      text=urllib.request.urlopen(url,timeout=20).read().decode('utf-8','replace')
-                      m=re.search(r"<div class='result ok'><strong>(\d+)</strong>",text)
-                      incomplete='داده این ترکیب در بانک هنوز کامل نشده' in text
-                      out[key][service]={'count':int(m.group(1)) if m else 0,'incomplete':incomplete}
+                      out[key][service]={'count':selection_count(service=service,province=province,city=city)}
                   except Exception as e:
                       out[key][service]={'error':str(e)}
-          payload={'coverage':out,'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()}
-          open('DRLINQ_LIVE_COVERAGE_REPORT.json','w',encoding='utf-8').write(json.dumps(payload,ensure_ascii=False,indent=2)+'\n')
-          print(json.dumps(payload,ensure_ascii=False,indent=2))
+          print(json.dumps({'coverage':out,'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()},ensure_ascii=False))
+          PY
+      - name: Save report
+        env:
+          OUTCOME: ${{ steps.query.outcome }}
+        run: |
+          python3 - <<'PY'
+          import json,pathlib,os,datetime
+          p=pathlib.Path('/tmp/coverage.json')
+          if p.exists() and p.read_text(errors='ignore').strip():
+              try: data=json.loads(p.read_text())
+              except Exception as e: data={'ok':False,'error':str(e),'raw':p.read_text(errors='ignore')[-4000:]}
+          else:
+              data={'ok':False,'error':'coverage query produced no output'}
+          data['workflow_ok']=os.environ.get('OUTCOME')=='success'
+          pathlib.Path('DRLINQ_LIVE_COVERAGE_REPORT.json').write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n')
           PY
       - name: Commit report
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add DRLINQ_LIVE_COVERAGE_REPORT.json
-          git commit -m "Record live raw-provider coverage" || exit 0
+          git commit -m "Record live raw-provider coverage from VPS" || exit 0
           git push
-
-# retrigger
