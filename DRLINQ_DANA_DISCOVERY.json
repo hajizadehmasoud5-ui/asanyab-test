@@ -1,0 +1,27 @@
+{
+  "page_bytes": 18773,
+  "target_scripts": [
+    "/_next/static/chunks/app/centers/page-b48f0360ec3a79e4.js"
+  ],
+  "chunks": [
+    {
+      "url": "https://dana1404.ir/_next/static/chunks/app/centers/page-b48f0360ec3a79e4.js",
+      "bytes": 17145,
+      "candidates": [
+        ",children:e.center_name}),(0,a.jsx)(c.pj,{className:",
+        ",children:e.city?(0,a.jsxs)(",
+        ",children:e.specialty_type||",
+        "/api/centers",
+        "flex cursor-default items-center justify-center py-1",
+        "flex items-center gap-4",
+        "flex items-center justify-between mb-8",
+        "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*=",
+        "}),e.city]}):"
+      ],
+      "urls": [
+        "/api/centers"
+      ]
+    }
+  ],
+  "checked_at_utc": "2026-08-23T18:57:22.206034+00:00"
+}
