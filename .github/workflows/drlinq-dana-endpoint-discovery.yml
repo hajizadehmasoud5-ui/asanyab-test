@@ -1,0 +1,50 @@
+name: DrLinq Dana Endpoint Discovery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/drlinq-dana-endpoint-discovery.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect Dana centers JavaScript
+        run: |
+          python3 - <<'PY'
+          import json,re,urllib.request,urllib.parse,datetime
+          base='https://dana1404.ir'
+          page='/centers'
+          def get(url):
+              req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0 DrLinqDiscovery/1.0'})
+              return urllib.request.urlopen(req,timeout=30).read().decode('utf-8','ignore')
+          html=get(base+page)
+          scripts=re.findall(r'<script[^>]+src=["\']([^"\']+)',html,re.I)
+          target=[s for s in scripts if '/app/centers/' in s]
+          out={'page_bytes':len(html),'target_scripts':target}
+          chunks=[]
+          for src in target:
+              url=urllib.parse.urljoin(base+'/',src)
+              js=get(url)
+              strings=sorted(set(re.findall(r'["\']([^"\']{3,220})["\']',js)))
+              candidates=[x for x in strings if any(k in x.lower() for k in ['api','center','province','city','special','search','clinic','medical'])]
+              urls=sorted(set(re.findall(r'https?://[^"\'\s)]+|/[A-Za-z0-9_./?=&%-]{3,180}',js)))
+              urls=[x for x in urls if any(k in x.lower() for k in ['api','center','province','city','special','search'])]
+              chunks.append({'url':url,'bytes':len(js),'candidates':candidates[:120],'urls':urls[:120]})
+          out['chunks']=chunks
+          out['checked_at_utc']=datetime.datetime.now(datetime.timezone.utc).isoformat()
+          open('DRLINQ_DANA_DISCOVERY.json','w',encoding='utf-8').write(json.dumps(out,ensure_ascii=False,indent=2)+'\n')
+          PY
+      - name: Commit result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DRLINQ_DANA_DISCOVERY.json
+          git commit -m "Record Dana center endpoint discovery" || exit 0
+          git push
