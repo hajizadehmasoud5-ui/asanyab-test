@@ -1,5 +1,3 @@
-from html import escape
-
 from fastapi.responses import Response
 
 import app as base
@@ -16,23 +14,33 @@ def geography_options(province: str = "", city: str = ""):
             "SELECT DISTINCT name FROM bank_services WHERE name IS NOT NULL AND name<>'' ORDER BY name"
         ).fetchall()
 
-        # Province/city choices come from a canonical geography catalog, not provider records.
         has_geo = conn.execute("SELECT to_regclass('public.geo_provinces') AS t").fetchone()["t"] is not None
         geo_count = 0
         if has_geo:
             geo_count = conn.execute("SELECT count(*) AS n FROM geo_provinces").fetchone()["n"]
 
         if geo_count:
+            # Canonical catalog + any real provider location not yet present in the catalog.
             provinces = conn.execute(
-                "SELECT name FROM geo_provinces ORDER BY name"
+                """SELECT name FROM (
+                       SELECT name FROM geo_provinces
+                       UNION
+                       SELECT DISTINCT province AS name FROM bank_locations
+                       WHERE province IS NOT NULL AND province<>''
+                   ) x ORDER BY name"""
             ).fetchall()
             if province:
                 cities = conn.execute(
-                    """SELECT c.name
-                       FROM geo_cities c
-                       JOIN geo_provinces p ON p.id=c.province_id
-                       WHERE p.name=%s ORDER BY c.name""",
-                    (province,),
+                    """SELECT name FROM (
+                           SELECT c.name
+                           FROM geo_cities c
+                           JOIN geo_provinces p ON p.id=c.province_id
+                           WHERE p.name=%s
+                           UNION
+                           SELECT DISTINCT city AS name FROM bank_locations
+                           WHERE province=%s AND city IS NOT NULL AND city<>''
+                       ) x ORDER BY name""",
+                    (province, province),
                 ).fetchall()
             else:
                 cities = []
@@ -50,7 +58,7 @@ def geography_options(province: str = "", city: str = ""):
             else:
                 cities = []
 
-        # Neighborhoods are currently shown only where they are explicitly known in provider addresses.
+        # Neighborhoods stay conservative: only explicit/verified districts from provider addresses.
         if province and city:
             districts = conn.execute(
                 """SELECT DISTINCT district FROM bank_locations
@@ -70,7 +78,6 @@ def geography_options(province: str = "", city: str = ""):
     }
 
 
-# Existing /view and /filters functions look up geography_options in the base module at runtime.
 base.geography_options = geography_options
 
 
