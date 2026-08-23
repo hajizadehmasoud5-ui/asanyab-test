@@ -1,0 +1,45 @@
+name: DrLinq DNS Status
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/drlinq-dns-status.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  dns:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve public DNS
+        run: |
+          {
+            echo 'drlinq.ir'
+            getent ahostsv4 drlinq.ir | awk '{print $1}' | sort -u || true
+            echo 'n8n.drlinq.ir'
+            getent ahostsv4 n8n.drlinq.ir | awk '{print $1}' | sort -u || true
+            echo 'bank.drlinq.ir'
+            getent ahostsv4 bank.drlinq.ir | awk '{print $1}' | sort -u || true
+            echo 'api.drlinq.ir'
+            getent ahostsv4 api.drlinq.ir | awk '{print $1}' | sort -u || true
+          } > /tmp/dns.txt
+      - name: Write status
+        run: |
+          python3 - <<'PY'
+          import json,pathlib,datetime
+          pathlib.Path('DRLINQ_DNS_STATUS.json').write_text(json.dumps({
+            'report': pathlib.Path('/tmp/dns.txt').read_text(errors='ignore'),
+            'checked_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat()
+          },ensure_ascii=False,indent=2)+'\n')
+          PY
+      - name: Commit status
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DRLINQ_DNS_STATUS.json
+          git commit -m "Record DrLinq DNS status" || exit 0
+          git push
