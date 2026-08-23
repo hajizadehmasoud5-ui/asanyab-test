@@ -91,3 +91,5 @@ jobs:
           git add DRLINQ_PHARMACY_TEHRAN_NIGHT_IMPORT_STATUS.json
           git commit -m "Record second Tehran pharmacy import" || exit 0
           git push
+
+# retrigger
