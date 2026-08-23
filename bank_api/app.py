@@ -1,4 +1,3 @@
-import json
 import os
 import re
 from contextlib import contextmanager
@@ -11,7 +10,7 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="DrLinq Provider Bank", version="0.4.0")
+app = FastAPI(title="DrLinq Provider Bank", version="0.5.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://drlinq.ir", "https://www.drlinq.ir"],
@@ -80,112 +79,46 @@ def stats():
               (SELECT count(DISTINCT insurer_id) FROM bank_contracts WHERE status='active') AS insurers_with_data,
               (SELECT count(*) FROM bank_sources WHERE active) AS sources,
               (SELECT count(DISTINCT COALESCE(canonical2.id,s2.id))
-                 FROM bank_contracts c2
-                 JOIN bank_providers p2 ON p2.id=c2.provider_id
-                 JOIN bank_provider_services ps2 ON ps2.provider_id=p2.id
+                 FROM bank_provider_services ps2
                  JOIN bank_services s2 ON s2.id=ps2.service_id
                  LEFT JOIN bank_service_aliases sa2 ON sa2.normalized_alias=s2.normalized_name
-                 LEFT JOIN bank_services canonical2 ON canonical2.id=sa2.service_id
-                WHERE c2.status='active' AND p2.active=TRUE) AS services
+                 LEFT JOIN bank_services canonical2 ON canonical2.id=sa2.service_id) AS services
             """
         ).fetchone()
-        latest = conn.execute(
-            "SELECT finished_at,status,fetched_count,accepted_count,rejected_count FROM bank_ingestion_runs ORDER BY started_at DESC LIMIT 1"
-        ).fetchone()
-    return {"counts": counts, "latest_ingestion": latest}
+    return {"counts": counts}
 
 
-def filter_clauses(insurer="", service="", province="", city="", district="", include_service=True):
-    clauses = ["c.status='active'", "p.active=TRUE"]
-    params = []
-    if insurer:
-        clauses.append("i.name=%s")
-        params.append(insurer)
-    if include_service and service:
-        clauses.append(f"{SERVICE_NORM_EXPR}=%s")
-        params.append(norm(service))
-    if province:
-        clauses.append("l.province=%s")
-        params.append(province)
-    if city:
-        clauses.append("l.city=%s")
-        params.append(city)
-    if district:
-        clauses.append("l.district=%s")
-        params.append(district)
-    return clauses, params
-
-
-def available_options(insurer: str = "", service: str = "", province: str = "", city: str = ""):
+def geography_options(province: str = "", city: str = ""):
     with db() as conn:
         insurers = conn.execute(
-            """SELECT DISTINCT i.name
-               FROM bank_contracts c
-               JOIN bank_insurers i ON i.id=c.insurer_id
-               WHERE c.status='active'
-               ORDER BY i.name"""
+            "SELECT name FROM bank_insurers WHERE active ORDER BY name"
         ).fetchall()
-
-        service_clauses, service_params = filter_clauses(
-            insurer=insurer, province=province, city=city, include_service=False
-        )
         services = conn.execute(
-            f"""SELECT DISTINCT {SERVICE_NAME_EXPR} AS name
-                FROM bank_contracts c
-                JOIN bank_insurers i ON i.id=c.insurer_id
-                JOIN bank_providers p ON p.id=c.provider_id
-                JOIN bank_locations l ON l.id=c.location_id
-                {SERVICE_JOINS}
-                WHERE {' AND '.join(service_clauses)}
-                  AND {SERVICE_NAME_EXPR} IS NOT NULL
-                  AND {SERVICE_NAME_EXPR}<>''
-                ORDER BY name""",
-            service_params,
+            "SELECT DISTINCT name FROM bank_services WHERE name IS NOT NULL AND name<>'' ORDER BY name"
         ).fetchall()
-
-        province_clauses, province_params = filter_clauses(insurer=insurer, service=service)
         provinces = conn.execute(
-            f"""SELECT DISTINCT l.province
-                FROM bank_contracts c
-                JOIN bank_insurers i ON i.id=c.insurer_id
-                JOIN bank_providers p ON p.id=c.provider_id
-                JOIN bank_locations l ON l.id=c.location_id
-                {SERVICE_JOINS}
-                WHERE {' AND '.join(province_clauses)}
-                  AND l.province IS NOT NULL AND l.province<>''
-                ORDER BY l.province""",
-            province_params,
+            """SELECT DISTINCT province FROM bank_locations
+               WHERE province IS NOT NULL AND province<>'' ORDER BY province"""
         ).fetchall()
 
-        city_clauses, city_params = filter_clauses(insurer=insurer, service=service, province=province)
-        cities = conn.execute(
-            f"""SELECT DISTINCT l.city
-                FROM bank_contracts c
-                JOIN bank_insurers i ON i.id=c.insurer_id
-                JOIN bank_providers p ON p.id=c.provider_id
-                JOIN bank_locations l ON l.id=c.location_id
-                {SERVICE_JOINS}
-                WHERE {' AND '.join(city_clauses)}
-                  AND l.city IS NOT NULL AND l.city<>''
-                ORDER BY l.city""",
-            city_params,
-        ).fetchall()
+        if province:
+            cities = conn.execute(
+                """SELECT DISTINCT city FROM bank_locations
+                   WHERE province=%s AND city IS NOT NULL AND city<>'' ORDER BY city""",
+                (province,),
+            ).fetchall()
+        else:
+            cities = []
 
-        district_clauses, district_params = filter_clauses(
-            insurer=insurer, service=service, province=province, city=city
-        )
-        districts = conn.execute(
-            f"""SELECT DISTINCT l.district
-                FROM bank_contracts c
-                JOIN bank_insurers i ON i.id=c.insurer_id
-                JOIN bank_providers p ON p.id=c.provider_id
-                JOIN bank_locations l ON l.id=c.location_id
-                {SERVICE_JOINS}
-                WHERE {' AND '.join(district_clauses)}
-                  AND l.district IS NOT NULL AND l.district<>''
-                ORDER BY l.district""",
-            district_params,
-        ).fetchall()
+        if province and city:
+            districts = conn.execute(
+                """SELECT DISTINCT district FROM bank_locations
+                   WHERE province=%s AND city=%s
+                     AND district IS NOT NULL AND district<>'' ORDER BY district""",
+                (province, city),
+            ).fetchall()
+        else:
+            districts = []
 
     return {
         "insurers": [x["name"] for x in insurers],
@@ -197,13 +130,45 @@ def available_options(insurer: str = "", service: str = "", province: str = "", 
 
 
 @app.get("/filters")
-def filters(insurer: str = "", service: str = "", province: str = "", city: str = ""):
-    return available_options(insurer=insurer, service=service, province=province, city=city)
+def filters(province: str = "", city: str = ""):
+    return geography_options(province=province, city=city)
+
+
+def selection_count(insurer: str = "", service: str = "", province: str = "", city: str = "", district: str = "") -> int:
+    clauses = ["c.status='active'", "p.active=TRUE"]
+    params = []
+    if insurer:
+        clauses.append("i.name=%s")
+        params.append(insurer)
+    if service:
+        clauses.append(f"{SERVICE_NORM_EXPR}=%s")
+        params.append(norm(service))
+    if province:
+        clauses.append("l.province=%s")
+        params.append(province)
+    if city:
+        clauses.append("l.city=%s")
+        params.append(city)
+    if district:
+        clauses.append("l.district=%s")
+        params.append(district)
+
+    sql = f"""
+      SELECT count(DISTINCT p.id) AS n
+      FROM bank_contracts c
+      JOIN bank_providers p ON p.id=c.provider_id
+      JOIN bank_locations l ON l.id=c.location_id
+      JOIN bank_insurers i ON i.id=c.insurer_id
+      {SERVICE_JOINS}
+      WHERE {' AND '.join(clauses)}
+    """
+    with db() as conn:
+        row = conn.execute(sql, params).fetchone()
+    return int(row["n"] or 0)
 
 
 @app.get("/providers")
 def providers(
-    q: str = "",
     insurer: str = "",
     service: str = "",
     province: str = "",
@@ -212,19 +177,29 @@ def providers(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
-    clauses, params = filter_clauses(
-        insurer=insurer, service=service, province=province, city=city, district=district
-    )
-    if q:
-        clauses.append("(p.name ILIKE %s OR l.address ILIKE %s OR p.phone ILIKE %s)")
-        params.extend([f"%{q}%", f"%{q}%", f"%{q}%"])
+    # Kept for backend/future use. The patient-facing page does not expose names, addresses or phones.
+    clauses = ["c.status='active'", "p.active=TRUE"]
+    params = []
+    if insurer:
+        clauses.append("i.name=%s")
+        params.append(insurer)
+    if service:
+        clauses.append(f"{SERVICE_NORM_EXPR}=%s")
+        params.append(norm(service))
+    if province:
+        clauses.append("l.province=%s")
+        params.append(province)
+    if city:
+        clauses.append("l.city=%s")
+        params.append(city)
+    if district:
+        clauses.append("l.district=%s")
+        params.append(district)
 
     sql = f"""
-      SELECT DISTINCT
-        p.id,p.name,p.provider_type,p.phone,p.website,
+      SELECT DISTINCT p.id,p.name,p.provider_type,p.phone,p.website,
         l.province,l.city,l.district,l.address,l.latitude,l.longitude,
-        i.name AS insurer,
-        c.confidence,c.last_verified_at,
+        i.name AS insurer,c.confidence,c.last_verified_at,
         src.name AS source_name,src.url AS source_url,src.source_type
       FROM bank_contracts c
       JOIN bank_providers p ON p.id=c.provider_id
@@ -253,105 +228,77 @@ def option_html(values, selected_value, placeholder):
 
 @app.get("/view", response_class=HTMLResponse)
 def view(
-    q: str = "",
-    insurer: str = "",
     service: str = "",
+    insurer: str = "",
     province: str = "",
     city: str = "",
     district: str = "",
 ):
-    summary = stats()["counts"]
-    fs = available_options(insurer=insurer, service=service, province=province, city=city)
-    items = providers(
-        q=q, insurer=insurer, service=service, province=province,
-        city=city, district=district, limit=100, offset=0
-    )["items"]
+    fs = geography_options(province=province, city=city)
+    has_search = bool(service or insurer or province or city or district)
+    count = selection_count(
+        insurer=insurer, service=service, province=province, city=city, district=district
+    ) if has_search else None
 
-    cards = []
-    for item in items:
-        phone = escape(item.get("phone") or "—")
-        address = escape(item.get("address") or "—")
-        name = escape(item.get("name") or "—")
-        insurer_name = escape(item.get("insurer") or "—")
-        province_name = escape(item.get("province") or "—")
-        city_name = escape(item.get("city") or "—")
-        district_name = escape(item.get("district") or "ثبت نشده")
-        source_name = escape(item.get("source_name") or "منبع ثبت‌شده")
-        source_url = escape(item.get("source_url") or "#", quote=True)
-        official = item.get("confidence") == "official" or item.get("source_type") == "official"
-        label = "منبع رسمی" if official else "منبع ثانویه؛ قبل از مراجعه استعلام شود"
-        cls = "official" if official else "secondary"
-        verified = escape(str(item.get("last_verified_at") or "—"))
-        cards.append(
-            f"<article class='card'><h2>{name}</h2>"
-            f"<div class='facts'><span><b>بیمه:</b> {insurer_name}</span><span><b>استان:</b> {province_name}</span>"
-            f"<span><b>شهر:</b> {city_name}</span><span><b>محله/منطقه:</b> {district_name}</span></div>"
-            f"<p><b>تلفن:</b> {phone}</p><p><b>آدرس:</b> {address}</p>"
-            f"<div class='source {cls}'><span>{label}</span><span>{source_name}</span>"
-            f"<span>آخرین ثبت/بررسی: {verified}</span> · <a href='{source_url}' target='_blank' rel='noopener'>مشاهده منبع</a></div></article>"
-        )
-
-    empty_message = "برای این ترکیب هنوز نتیجه ثبت نشده است. یکی از فیلترها را تغییر بده."
-    state = json.dumps({
-        "insurer": insurer, "service": service, "province": province,
-        "city": city, "district": district
-    }, ensure_ascii=False)
+    if has_search:
+        chosen = " · ".join([x for x in [service, insurer, province, city, district] if x])
+        if count:
+            result_html = (
+                f"<div class='result ok'><b>{count}</b><span>گزینه مطابق انتخاب فعلی در بانک پیدا شد.</span>"
+                f"<small>{escape(chosen)}</small></div>"
+            )
+        else:
+            result_html = (
+                "<div class='result empty'><b>۰</b><span>در بانک فعلی برای این ترکیب هنوز گزینه ثبت نشده است.</span>"
+                f"<small>{escape(chosen)}</small></div>"
+            )
+    else:
+        result_html = ""
 
     html = f"""<!doctype html>
 <html lang='fa' dir='rtl'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
-<title>بانک سراسری مراکز دکترلینک</title><style>
-*{{box-sizing:border-box}}body{{margin:0;background:#f5f7fb;color:#172033;font-family:Tahoma,Arial,sans-serif}}.wrap{{max-width:1120px;margin:auto;padding:22px 14px 60px}}
-.top{{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}}h1{{color:#12213a;margin:0 0 6px;font-size:26px}}.sub{{color:#667085;font-size:12px;line-height:1.9}}.home{{background:#12213a;color:#fff;text-decoration:none;padding:10px 13px;border-radius:10px;font-size:11px}}
-.stats{{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:18px 0}}.stat,.card,.search{{background:white;border:1px solid #e5e7eb;border-radius:14px;padding:14px}}.stat b{{font-size:22px;color:#12213a;display:block}}.stat span{{font-size:10px;color:#667085}}
-.search{{margin-bottom:15px}}.fields{{display:grid;grid-template-columns:1.5fr repeat(5,1fr);gap:8px}}input,select,button{{width:100%;min-height:43px;border:1px solid #d6dbe4;border-radius:10px;background:#fff;padding:8px 10px;font:inherit;font-size:11px}}button{{background:#1769e0;color:white;border:0;font-weight:800;cursor:pointer;margin-top:8px}}select:disabled{{background:#f2f4f7;color:#98a2b3}}
-.meta{{display:flex;justify-content:space-between;gap:10px;color:#667085;font-size:11px;margin:8px 2px 12px}}.grid{{display:grid;gap:10px}}h2{{font-size:16px;margin:0 0 9px;color:#12213a}}p{{margin:5px 0;font-size:12px;line-height:1.9}}.facts{{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:11px;color:#475467}}
-.source{{border-top:1px dashed #e5e7eb;margin-top:10px;padding-top:9px;font-size:10px;display:flex;gap:7px;flex-wrap:wrap;align-items:center}}.secondary{{color:#9a6700}}.official{{color:#087443}}a{{color:#2563eb;text-decoration:none}}.notice{{background:#fff8e6;border:1px solid #f5d58a;border-radius:12px;padding:10px;font-size:11px;line-height:1.8;margin-bottom:14px}}.empty{{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:28px;text-align:center;color:#667085;font-size:12px}}
-@media(max-width:900px){{.stats{{grid-template-columns:repeat(3,1fr)}}.fields{{grid-template-columns:1fr 1fr}}}}@media(max-width:520px){{.stats{{grid-template-columns:repeat(2,1fr)}}.fields{{grid-template-columns:1fr}}.top{{display:block}}.home{{display:inline-block;margin-top:8px}}}}
+<title>جست‌وجوی درمان دکترلینک</title><style>
+*{{box-sizing:border-box}}body{{margin:0;background:#f5f7fb;color:#172033;font-family:Tahoma,Arial,sans-serif}}.wrap{{max-width:980px;margin:auto;padding:32px 16px 70px}}
+.top{{text-align:center;margin-bottom:26px}}h1{{color:#12213a;margin:0 0 8px;font-size:28px}}.sub{{color:#667085;font-size:13px;line-height:2}}
+.search{{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:20px;box-shadow:0 8px 28px rgba(16,24,40,.05)}}
+.fields{{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}}label{{display:block;font-size:11px;color:#667085;margin:0 2px 6px}}select,button{{width:100%;min-height:48px;border:1px solid #d6dbe4;border-radius:12px;background:#fff;padding:9px 10px;font:inherit;font-size:12px}}button{{background:#1769e0;color:white;border:0;font-weight:800;cursor:pointer;margin-top:12px}}select:disabled{{background:#f2f4f7;color:#98a2b3}}
+.flow{{display:flex;justify-content:center;gap:7px;flex-wrap:wrap;margin:0 0 18px;color:#667085;font-size:11px}}.flow span{{background:#fff;border:1px solid #e5e7eb;border-radius:999px;padding:7px 10px}}
+.result{{margin-top:16px;border-radius:14px;padding:18px;text-align:center;display:grid;gap:6px}}.result b{{font-size:32px}}.result span{{font-size:13px}}.result small{{color:#667085;line-height:1.8}}.result.ok{{background:#ecfdf3;border:1px solid #abefc6;color:#067647}}.result.empty{{background:#fff8e6;border:1px solid #f5d58a;color:#9a6700}}
+.note{{color:#667085;text-align:center;font-size:11px;line-height:1.9;margin-top:14px}}
+@media(max-width:820px){{.fields{{grid-template-columns:1fr 1fr}}}}@media(max-width:520px){{.fields{{grid-template-columns:1fr}}.wrap{{padding:22px 12px 50px}}h1{{font-size:23px}}}}
 </style></head><body><main class='wrap'>
-<div class='top'><div><h1>بانک سراسری مراکز دکترلینک</h1><div class='sub'>فیلترهای زنجیره‌ای: بیمه، خدمت، استان، شهر و محله/منطقه. فقط گزینه‌هایی نمایش داده می‌شوند که پشتشان داده وجود دارد.</div></div><a class='home' href='https://drlinq.ir/'>بازگشت به دکترلینک</a></div>
-<div class='stats'><div class='stat'><b>{summary.get('providers',0)}</b><span>مرکز</span></div><div class='stat'><b>{summary.get('locations',0)}</b><span>آدرس</span></div><div class='stat'><b>{summary.get('contracts',0)}</b><span>رابطه بیمه‌ای</span></div><div class='stat'><b>{summary.get('insurers_with_data',0)} / {summary.get('insurers',0)}</b><span>بیمه دارای داده / فهرست</span></div><div class='stat'><b>{summary.get('services',0)}</b><span>خدمت دارای داده</span></div><div class='stat'><b>{summary.get('sources',0)}</b><span>منبع فعال</span></div></div>
-<form class='search' method='get'><div class='fields'>
-<input name='q' value='{escape(q,quote=True)}' placeholder='نام مرکز، آدرس یا تلفن'>
-<select name='insurer' id='insurer'>{option_html(fs['insurers'], insurer, 'همه بیمه‌های دارای داده')}</select>
-<select name='service' id='service'>{option_html(fs['services'], service, 'همه خدمات موجود')}</select>
-<select name='province' id='province'>{option_html(fs['provinces'], province, 'همه استان‌های موجود')}</select>
-<select name='city' id='city'>{option_html(fs['cities'], city, 'همه شهرهای موجود')}</select>
-<select name='district' id='district'>{option_html(fs['districts'], district, 'همه محله‌ها/مناطق')}</select>
-</div><button type='submit'>جست‌وجو در بانک</button></form>
-<div class='notice'>محله/منطقه فقط وقتی ثبت می‌شود که از خود آدرس منبع قابل تشخیص باشد؛ داده جغرافیایی حدس زده نمی‌شود. منابع رسمی و ثانویه نیز جدا علامت‌گذاری می‌شوند.</div>
-<div class='meta'><span>{len(items)} نتیجه در این صفحه</span><span>حداکثر ۱۰۰ نتیجه نمایش داده می‌شود</span></div>
-<div class='grid'>{''.join(cards) if cards else f"<div class='empty'>{escape(empty_message)}</div>"}</div>
+<div class='top'><h1>چه خدمتی می‌خواهی؟</h1><div class='sub'>خدمت و بیمه را انتخاب کن، بعد موقعیتت را از استان تا محله مشخص کن.</div></div>
+<div class='flow'><span>۱. خدمت</span><span>۲. بیمه</span><span>۳. استان</span><span>۴. شهر</span><span>۵. محله/منطقه</span></div>
+<form class='search' method='get'>
+<div class='fields'>
+<div><label>خدمت / تخصص</label><select name='service' id='service'>{option_html(fs['services'], service, 'انتخاب خدمت')}</select></div>
+<div><label>بیمه</label><select name='insurer' id='insurer'>{option_html(fs['insurers'], insurer, 'انتخاب بیمه')}</select></div>
+<div><label>استان</label><select name='province' id='province'>{option_html(fs['provinces'], province, 'انتخاب استان')}</select></div>
+<div><label>شهر</label><select name='city' id='city' {'disabled' if not province else ''}>{option_html(fs['cities'], city, 'انتخاب شهر')}</select></div>
+<div><label>محله / منطقه</label><select name='district' id='district' {'disabled' if not city else ''}>{option_html(fs['districts'], district, 'انتخاب محله')}</select></div>
+</div>
+<button type='submit'>بررسی گزینه‌های موجود</button>
+{result_html}
+</form>
+<div class='note'>در این مرحله نام مرکز، آدرس و تلفن به بیمار نمایش داده نمی‌شود. جزئیات مرکز در مرحله بعدی محصول اضافه خواهد شد.</div>
 </main>
 <script>
-const state={state};
-const insurer=document.getElementById('insurer');
-const service=document.getElementById('service');
 const province=document.getElementById('province');
 const city=document.getElementById('city');
 const district=document.getElementById('district');
-function refill(el,values,placeholder,preferred=''){{
-  const old=preferred || el.value; el.innerHTML='';
-  const first=document.createElement('option'); first.value=''; first.textContent=placeholder; el.appendChild(first);
-  for(const value of values){{const o=document.createElement('option');o.value=value;o.textContent=value;if(value===old)o.selected=true;el.appendChild(o);}}
-}}
-async function refresh(level){{
-  const qs=new URLSearchParams();
-  if(insurer.value)qs.set('insurer',insurer.value);
-  if(service.value)qs.set('service',service.value);
-  if(province.value)qs.set('province',province.value);
-  if(city.value)qs.set('city',city.value);
-  try{{
-    const r=await fetch('filters?'+qs.toString(),{{headers:{{Accept:'application/json'}}}}); if(!r.ok)return;
-    const data=await r.json();
-    if(level==='insurer'){{refill(service,data.services,'همه خدمات موجود');refill(province,data.provinces,'همه استان‌های موجود');refill(city,data.cities,'همه شهرهای موجود');refill(district,data.districts,'همه محله‌ها/مناطق');}}
-    if(level==='service'){{refill(province,data.provinces,'همه استان‌های موجود');refill(city,data.cities,'همه شهرهای موجود');refill(district,data.districts,'همه محله‌ها/مناطق');}}
-    if(level==='province'){{refill(city,data.cities,'همه شهرهای موجود');refill(district,data.districts,'همه محله‌ها/مناطق');}}
-    if(level==='city'){{refill(district,data.districts,'همه محله‌ها/مناطق');}}
+function refill(el,values,placeholder){{el.innerHTML='';const f=document.createElement('option');f.value='';f.textContent=placeholder;el.appendChild(f);for(const v of values){{const o=document.createElement('option');o.value=v;o.textContent=v;el.appendChild(o);}}}}
+async function loadGeo(){{
+  const qs=new URLSearchParams(); if(province.value)qs.set('province',province.value); if(city.value)qs.set('city',city.value);
+  try{{const r=await fetch('filters?'+qs.toString());if(!r.ok)return;const d=await r.json();
+    if(province.value){{refill(city,d.cities,'انتخاب شهر');city.disabled=false;}}else{{refill(city,[],'انتخاب شهر');city.disabled=true;}}
+    refill(district,[],'انتخاب محله');district.disabled=true;
   }}catch(e){{}}
 }}
-insurer.addEventListener('change',()=>refresh('insurer'));
-service.addEventListener('change',()=>refresh('service'));
-province.addEventListener('change',()=>refresh('province'));
-city.addEventListener('change',()=>refresh('city'));
+async function loadDistricts(){{
+  if(!province.value||!city.value){{refill(district,[],'انتخاب محله');district.disabled=true;return;}}
+  const qs=new URLSearchParams({{province:province.value,city:city.value}});
+  try{{const r=await fetch('filters?'+qs.toString());if(!r.ok)return;const d=await r.json();refill(district,d.districts,'انتخاب محله');district.disabled=d.districts.length===0;}}catch(e){{}}
+}}
+province.addEventListener('change',loadGeo);city.addEventListener('change',loadDistricts);
 </script></body></html>"""
     return HTMLResponse(html)
