@@ -93,7 +93,7 @@ def main():
         seen_city_keys.add(city_key)
         point = c.get("point") or {}
         row = {
-            "id": int(c["id"]),
+            "source_id": int(c["id"]),
             "province_id": province_id,
             "name": name,
             "norm": normalized_name,
@@ -118,19 +118,6 @@ def main():
                   source_url TEXT,
                   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
                 );
-                CREATE TABLE IF NOT EXISTS geo_cities (
-                  id INTEGER PRIMARY KEY,
-                  province_id INTEGER NOT NULL REFERENCES geo_provinces(id) ON DELETE CASCADE,
-                  name TEXT NOT NULL,
-                  normalized_name TEXT NOT NULL,
-                  latitude DOUBLE PRECISION,
-                  longitude DOUBLE PRECISION,
-                  source_url TEXT,
-                  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-                  UNIQUE(province_id, normalized_name)
-                );
-                CREATE INDEX IF NOT EXISTS idx_geo_cities_province ON geo_cities(province_id, normalized_name);
-                CREATE INDEX IF NOT EXISTS idx_geo_cities_name ON geo_cities(normalized_name);
             """)
 
             for p in province_by_id.values():
@@ -144,17 +131,32 @@ def main():
                     (p["id"], p["name"], p["norm"], p["lat"], p["lon"], PROVINCES_URL),
                 )
 
+            # Derived catalog: safe to rebuild on every sync. We intentionally do not trust source IDs as PKs.
+            cur.execute("DROP TABLE IF EXISTS geo_cities")
+            cur.execute("""
+                CREATE TABLE geo_cities (
+                  id BIGSERIAL PRIMARY KEY,
+                  source_id INTEGER,
+                  province_id INTEGER NOT NULL REFERENCES geo_provinces(id) ON DELETE CASCADE,
+                  name TEXT NOT NULL,
+                  normalized_name TEXT NOT NULL,
+                  latitude DOUBLE PRECISION,
+                  longitude DOUBLE PRECISION,
+                  source_url TEXT,
+                  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                  UNIQUE(province_id, normalized_name)
+                );
+                CREATE INDEX idx_geo_cities_province ON geo_cities(province_id, normalized_name);
+                CREATE INDEX idx_geo_cities_name ON geo_cities(normalized_name);
+            """)
+
             for rows in cities_by_province.values():
                 for c in rows:
                     cur.execute(
-                        """INSERT INTO geo_cities(id,province_id,name,normalized_name,latitude,longitude,source_url,updated_at)
+                        """INSERT INTO geo_cities(source_id,province_id,name,normalized_name,latitude,longitude,source_url,updated_at)
                            VALUES (%s,%s,%s,%s,%s,%s,%s,now())
-                           ON CONFLICT(province_id, normalized_name) DO UPDATE SET
-                             name=EXCLUDED.name,
-                             latitude=COALESCE(EXCLUDED.latitude,geo_cities.latitude),
-                             longitude=COALESCE(EXCLUDED.longitude,geo_cities.longitude),
-                             source_url=EXCLUDED.source_url, updated_at=now()""",
-                        (c["id"], c["province_id"], c["name"], c["norm"], c["lat"], c["lon"], CITIES_URL),
+                           ON CONFLICT(province_id, normalized_name) DO NOTHING""",
+                        (c["source_id"], c["province_id"], c["name"], c["norm"], c["lat"], c["lon"], CITIES_URL),
                     )
 
             cur.execute("SELECT id,province,city,address FROM bank_locations")
