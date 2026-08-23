@@ -1,0 +1,73 @@
+name: Debug Pharmacy Count Consistency
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/debug-pharmacy-count.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install sshpass
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass
+      - name: Compare live count paths
+        id: run
+        continue-on-error: true
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+        run: |
+          : "${VPS_PORT:=22}"
+          mkdir -p ~/.ssh
+          ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          sshpass -e ssh -o ConnectTimeout=20 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'bash -s' > /tmp/debug.txt 2>/tmp/debug.err <<'REMOTE'
+          set -euo pipefail
+          echo 'HTTP_PROVIDERS_COUNT:'
+          curl -fsS -G 'https://n8n.drlinq.ir/bank/providers' \
+            --data-urlencode 'service=داروخانه' \
+            --data-urlencode 'province=تهران' \
+            --data-urlencode 'city=تهران' \
+            --data-urlencode 'limit=200' | python3 -c 'import sys,json; print(len(json.load(sys.stdin).get("items",[])))'
+          echo 'HTTP_VIEW_MARKER:'
+          curl -fsS -G 'https://n8n.drlinq.ir/bank/view' \
+            --data-urlencode 'service=داروخانه' \
+            --data-urlencode 'province=تهران' \
+            --data-urlencode 'city=تهران' | python3 -c 'import sys,re; t=sys.stdin.read(); m=re.search(r"result ok[^>]*><strong>([0-9]+)</strong>",t); print(m.group(1) if m else "NO_OK_COUNT"); print("INCOMPLETE="+str("داده این ترکیب در بانک هنوز کامل نشده" in t))'
+          echo 'INTERNAL_RAW_COUNT:'
+          docker exec drlinq-bank-api python -c "from app_geo import raw_selection_count; print(raw_selection_count(service='داروخانه',province='تهران',city='تهران'))"
+          echo 'SERVICE_ROWS:'
+          docker exec drlinq-bank-api python - <<'PY'
+          PY
+          docker exec drlinq-bank-api python -c "from app import db; c=db(); conn=c.__enter__(); rows=conn.execute(\"SELECT s.name,s.normalized_name,count(DISTINCT p.id) n FROM bank_provider_services ps JOIN bank_services s ON s.id=ps.service_id JOIN bank_providers p ON p.id=ps.provider_id JOIN bank_provider_locations pl ON pl.provider_id=p.id JOIN bank_locations l ON l.id=pl.location_id WHERE l.province='تهران' AND l.city='تهران' AND (s.name ILIKE '%دارو%' OR p.provider_type ILIKE '%دارو%') GROUP BY s.name,s.normalized_name ORDER BY n DESC\").fetchall(); print([(r['name'],r['normalized_name'],r['n']) for r in rows]); c.__exit__(None,None,None)"
+          REMOTE
+      - name: Save debug status
+        env:
+          OUTCOME: ${{ steps.run.outcome }}
+        run: |
+          python3 - <<'PY'
+          import json,pathlib,os
+          def r(p):
+            x=pathlib.Path(p); return x.read_text(errors='ignore').strip() if x.exists() else ''
+          pathlib.Path('DRLINQ_PHARMACY_COUNT_DEBUG.json').write_text(json.dumps({
+            'ok':os.environ.get('OUTCOME')=='success','report':r('/tmp/debug.txt')[-12000:],'error':r('/tmp/debug.err')[-4000:]
+          },ensure_ascii=False,indent=2)+'\n')
+          PY
+      - name: Commit debug status
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DRLINQ_PHARMACY_COUNT_DEBUG.json
+          git commit -m "Record pharmacy count consistency debug" || exit 0
+          git push
