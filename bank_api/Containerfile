@@ -6,6 +6,7 @@ COPY app.py /app/app.py
 COPY schema.sql /app/schema.sql
 COPY seed_pilot.py /app/seed_pilot.py
 COPY seed_catalog.py /app/seed_catalog.py
+COPY cleanup_catalog.py /app/cleanup_catalog.py
 COPY ingest_iionline_iran.py /app/ingest_iionline_iran.py
 COPY ingest_dana_public.py /app/ingest_dana_public.py
 COPY ingest_asia_official.py /app/ingest_asia_official.py
