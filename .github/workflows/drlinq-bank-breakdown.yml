@@ -1,0 +1,62 @@
+name: DrLinq Bank Breakdown
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/drlinq-bank-breakdown.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
+      - name: Read live database breakdown
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+        run: |
+          : "${VPS_PORT:=22}"
+          mkdir -p ~/.ssh
+          ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          sshpass -e ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'bash -s' > /tmp/report.txt <<'REMOTE'
+          set -euo pipefail
+          docker exec drlinq-bank-api python - <<'PY'
+          import os,json,psycopg
+          from psycopg.rows import dict_row
+          dsn=' '.join([f"host={os.environ.get('DB_HOST','postgres')}",f"port={os.environ.get('DB_PORT','5432')}",f"dbname={os.environ['DB_NAME']}",f"user={os.environ['DB_USER']}",f"password={os.environ['DB_PASSWORD']}"])
+          with psycopg.connect(dsn,row_factory=dict_row) as c:
+            insurers=c.execute('''SELECT i.name,i.slug,count(*) contracts,count(DISTINCT c.provider_id) providers,count(DISTINCT c.location_id) locations,
+              count(*) FILTER (WHERE c.confidence='official') official_contracts,count(*) FILTER (WHERE c.confidence<>'official') secondary_contracts
+              FROM bank_contracts c JOIN bank_insurers i ON i.id=c.insurer_id WHERE c.status='active' GROUP BY i.id,i.name,i.slug ORDER BY contracts DESC''').fetchall()
+            sources=c.execute('''SELECT s.name,s.url,s.source_type,count(*) contracts,count(DISTINCT c.provider_id) providers,max(c.last_verified_at) last_verified_at
+              FROM bank_sources s LEFT JOIN bank_contracts c ON c.source_id=s.id AND c.status='active' GROUP BY s.id,s.name,s.url,s.source_type ORDER BY contracts DESC''').fetchall()
+            provinces=c.execute('''SELECT l.province,count(DISTINCT c.provider_id) providers FROM bank_contracts c JOIN bank_locations l ON l.id=c.location_id WHERE c.status='active' GROUP BY l.province ORDER BY providers DESC''').fetchall()
+            services=c.execute('''SELECT s.name,count(DISTINCT ps.provider_id) providers FROM bank_provider_services ps JOIN bank_services s ON s.id=ps.service_id GROUP BY s.id,s.name ORDER BY providers DESC LIMIT 100''').fetchall()
+            totals=c.execute('''SELECT (SELECT count(*) FROM bank_providers WHERE active) providers,(SELECT count(*) FROM bank_locations) locations,(SELECT count(*) FROM bank_contracts WHERE status='active') contracts,(SELECT count(*) FROM bank_insurers WHERE active) insurer_catalog,(SELECT count(DISTINCT insurer_id) FROM bank_contracts WHERE status='active') insurers_with_data,(SELECT count(*) FROM bank_sources WHERE active) sources,(SELECT count(*) FROM bank_services) services''').fetchone()
+          print(json.dumps({'totals':totals,'by_insurer':insurers,'by_source':sources,'by_province':provinces,'top_services':services},ensure_ascii=False,default=str))
+          PY
+          REMOTE
+      - name: Save result
+        run: |
+          python3 - <<'PY'
+          import json,pathlib,datetime
+          raw=pathlib.Path('/tmp/report.txt').read_text(errors='ignore').strip()
+          try: data=json.loads(raw)
+          except Exception: data={'raw':raw}
+          data['checked_at_utc']=datetime.datetime.now(datetime.timezone.utc).isoformat()
+          pathlib.Path('DRLINQ_BANK_BREAKDOWN.json').write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DRLINQ_BANK_BREAKDOWN.json
+          git commit -m "Record DrLinq live bank breakdown" || exit 0
+          git push
