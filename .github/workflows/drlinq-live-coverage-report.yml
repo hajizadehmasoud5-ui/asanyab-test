@@ -1,0 +1,49 @@
+name: DrLinq Live Coverage Report
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/drlinq-live-coverage-report.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Query live raw-provider coverage
+        run: |
+          python - <<'PY'
+          import json,re,urllib.parse,urllib.request,datetime
+          services=['داروخانه','دندانپزشکی','آزمایشگاه','فیزیوتراپی','تصویربرداری پزشکی','بیمارستان','کلینیک پزشکی']
+          cities=[('تهران','تهران'),('خوزستان','اهواز')]
+          out={}
+          for province,city in cities:
+              key=f'{province}/{city}'
+              out[key]={}
+              for service in services:
+                  qs=urllib.parse.urlencode({'service':service,'province':province,'city':city})
+                  url='https://n8n.drlinq.ir/bank/view?'+qs
+                  try:
+                      text=urllib.request.urlopen(url,timeout=20).read().decode('utf-8','replace')
+                      m=re.search(r"<div class='result ok'><strong>(\d+)</strong>",text)
+                      incomplete='داده این ترکیب در بانک هنوز کامل نشده' in text
+                      out[key][service]={'count':int(m.group(1)) if m else 0,'incomplete':incomplete}
+                  except Exception as e:
+                      out[key][service]={'error':str(e)}
+          payload={'coverage':out,'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()}
+          open('DRLINQ_LIVE_COVERAGE_REPORT.json','w',encoding='utf-8').write(json.dumps(payload,ensure_ascii=False,indent=2)+'\n')
+          print(json.dumps(payload,ensure_ascii=False,indent=2))
+          PY
+      - name: Commit report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DRLINQ_LIVE_COVERAGE_REPORT.json
+          git commit -m "Record live raw-provider coverage" || exit 0
+          git push
