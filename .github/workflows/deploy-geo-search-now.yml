@@ -1,6 +1,6 @@
 name: Deploy Geo Search Now
 
-# retry with internal city IDs
+# deploy merged canonical + provider geography
 on:
   push:
     branches: [main]
