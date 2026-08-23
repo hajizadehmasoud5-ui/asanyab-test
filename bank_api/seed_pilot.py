@@ -50,7 +50,7 @@ def main():
                    VALUES (%s,%s,%s,%s)
                    ON CONFLICT(slug) DO UPDATE SET name=EXCLUDED.name, normalized_name=EXCLUDED.normalized_name, updated_at=now()
                    RETURNING id""",
-                ("day-insurance", "بیمه دی", norm("بیمه دی"), "https://dayins.ir/"),
+                ("day", "بیمه دی", norm("بیمه دی"), "https://dayins.ir/"),
             )
             insurer_id = cur.fetchone()[0]
 
