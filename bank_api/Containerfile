@@ -8,6 +8,7 @@ COPY seed_pilot.py /app/seed_pilot.py
 COPY seed_catalog.py /app/seed_catalog.py
 COPY cleanup_catalog.py /app/cleanup_catalog.py
 COPY normalize_services.py /app/normalize_services.py
+COPY normalize_geography.py /app/normalize_geography.py
 COPY backfill_districts.py /app/backfill_districts.py
 COPY ingest_iionline_iran.py /app/ingest_iionline_iran.py
 COPY ingest_dana_public.py /app/ingest_dana_public.py
