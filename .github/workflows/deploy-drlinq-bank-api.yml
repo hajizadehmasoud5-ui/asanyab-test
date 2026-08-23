@@ -8,22 +8,24 @@ on:
       - '.github/workflows/deploy-drlinq-bank-api.yml'
   workflow_dispatch:
 
+concurrency:
+  group: drlinq-bank-vps
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-
       - name: Install sshpass
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass
-
-      - name: Deploy bank API and run nationwide ingestion
+      - name: Deploy current bank application only
         id: deploy
         continue-on-error: true
         env:
@@ -35,119 +37,39 @@ jobs:
           : "${VPS_PORT:=22}"
           mkdir -p ~/.ssh
           ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
-
-          sshpass -e ssh -o ConnectTimeout=20 -o BatchMode=no -o PasswordAuthentication=yes -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
-            'mkdir -p /opt/drlinq/bank-api'
-
-          sshpass -e scp -P "$VPS_PORT" -o ConnectTimeout=20 \
-            bank_api/app.py bank_api/schema.sql bank_api/requirements.txt bank_api/Containerfile \
-            bank_api/seed_pilot.py bank_api/seed_catalog.py bank_api/ingest_iionline_iran.py \
-            "$VPS_USER@$VPS_HOST:/opt/drlinq/bank-api/"
-
-          sshpass -e ssh -o ConnectTimeout=20 -o BatchMode=no -o PasswordAuthentication=yes -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'bash -s' > /tmp/deploy.txt 2>/tmp/deploy.err <<'REMOTE'
+          sshpass -e ssh -o ConnectTimeout=20 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'mkdir -p /opt/drlinq/bank-api'
+          sshpass -e scp -P "$VPS_PORT" -o ConnectTimeout=20 bank_api/*.py bank_api/schema.sql bank_api/requirements.txt bank_api/Containerfile "$VPS_USER@$VPS_HOST:/opt/drlinq/bank-api/"
+          sshpass -e ssh -o ConnectTimeout=20 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'bash -s' > /tmp/deploy.txt 2>/tmp/deploy.err <<'REMOTE'
           set -euo pipefail
           cd /opt/drlinq
-
-          cp Caddyfile "Caddyfile.pre-bank.$(date +%Y%m%d%H%M%S).bak"
-
-          cat > bank-compose.yml <<'EOF'
-          services:
-            bank-api:
-              build:
-                context: ./bank-api
-                dockerfile: Containerfile
-              container_name: drlinq-bank-api
-              restart: unless-stopped
-              env_file: .env
-              environment:
-                DB_HOST: postgres
-                DB_PORT: 5432
-                DB_NAME: ${POSTGRES_DB}
-                DB_USER: ${POSTGRES_USER}
-                DB_PASSWORD: ${POSTGRES_PASSWORD}
-              networks: [drlinq-internal]
-
-          networks:
-            drlinq-internal:
-              external: true
-          EOF
-
-          docker compose -f bank-compose.yml build --pull
+          docker compose -f bank-compose.yml build
           docker compose -f bank-compose.yml up -d
-
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          p = Path('/opt/drlinq/Caddyfile')
-          text = p.read_text()
-          if 'handle_path /bank/*' not in text:
-              pattern = r'n8n\.drlinq\.ir\s*\{.*?reverse_proxy\s+n8n:5678\s*\}'
-              replacement = '''n8n.drlinq.ir {
-            encode zstd gzip
-            handle_path /bank/* {
-              reverse_proxy bank-api:8000
-            }
-            handle {
-              reverse_proxy n8n:5678
-            }
-          }'''
-              new_text, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
-              if count != 1:
-                  raise SystemExit('Could not patch n8n.drlinq.ir block safely')
-              p.write_text(new_text)
-          PY
-
-          docker exec drlinq-caddy caddy validate --config /etc/caddy/Caddyfile
-          docker exec drlinq-caddy caddy reload --config /etc/caddy/Caddyfile
-
           ok=0
           for i in $(seq 1 40); do
-            if docker exec drlinq-caddy wget -qO- http://bank-api:8000/health >/tmp/bank_health.json 2>/dev/null; then
-              ok=1
-              break
-            fi
+            if curl -fsS https://n8n.drlinq.ir/bank/health >/dev/null 2>&1; then ok=1; break; fi
             sleep 2
           done
           test "$ok" = "1"
-
-          echo '--- catalog seed ---'
-          docker exec drlinq-bank-api python /app/seed_catalog.py
+          echo 'HEALTH:'
+          curl -fsS https://n8n.drlinq.ir/bank/health
           echo
-          echo '--- existing Day pilot ---'
-          docker exec drlinq-bank-api python /app/seed_pilot.py
-          echo
-          echo '--- Iran Insurance bulk source ---'
-          set +e
-          docker exec drlinq-bank-api python /app/ingest_iionline_iran.py
-          iran_rc=$?
-          set -e
-          echo "iran_import_rc=$iran_rc"
-          echo
-          echo '--- public stats ---'
-          curl -fsS --max-time 20 https://n8n.drlinq.ir/bank/stats
-          echo
-          echo '--- filters sample ---'
-          curl -fsS --max-time 20 https://n8n.drlinq.ir/bank/filters | head -c 3000
+          echo 'STATS:'
+          curl -fsS https://n8n.drlinq.ir/bank/stats
           echo
           REMOTE
-
       - name: Write deployment status
         env:
           OUTCOME: ${{ steps.deploy.outcome }}
         run: |
           python3 - <<'PY'
-          import json, pathlib, os, datetime
-          def r(path):
-              p=pathlib.Path(path)
-              return p.read_text(errors='ignore').strip() if p.exists() else ''
+          import json,pathlib,os,datetime
+          def r(p):
+            x=pathlib.Path(p); return x.read_text(errors='ignore').strip() if x.exists() else ''
           pathlib.Path('DRLINQ_BANK_DEPLOY_STATUS.json').write_text(json.dumps({
-              'ok': os.environ.get('OUTCOME') == 'success',
-              'report': r('/tmp/deploy.txt')[-20000:],
-              'error': r('/tmp/deploy.err')[-4000:],
-              'checked_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-          }, ensure_ascii=False, indent=2) + '\n')
+            'ok':os.environ.get('OUTCOME')=='success','report':r('/tmp/deploy.txt')[-12000:],'error':r('/tmp/deploy.err')[-3000:],
+            'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()
+          },ensure_ascii=False,indent=2)+'\n')
           PY
-
       - name: Commit deployment status
         run: |
           git config user.name "github-actions[bot]"
