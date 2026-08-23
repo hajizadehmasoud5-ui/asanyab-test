@@ -1,0 +1,60 @@
+name: DrLinq Alborz Discovery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/drlinq-alborz-discovery.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect Alborz official MedicalCenters
+        run: |
+          python3 - <<'PY'
+          import json,re,urllib.request,urllib.parse,datetime
+          urls=['https://alborzinsurance.ir/MedicalCenters','https://www.alborzinsurance.ir/MedicalCenters','https://alborzins.com/MedicalCenters']
+          out={'tries':[]}
+          html=None; final=None
+          for url in urls:
+            try:
+              req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0 DrLinqDiscovery/1.0'})
+              with urllib.request.urlopen(req,timeout=25) as r:
+                data=r.read().decode('utf-8','ignore'); out['tries'].append({'url':url,'status':r.status,'final':r.geturl(),'bytes':len(data)})
+                if len(data)>1000: html=data; final=r.geturl(); break
+            except Exception as e:
+              out['tries'].append({'url':url,'error':repr(e)})
+          if html:
+            out['ok']=True; out['final_url']=final
+            out['title']=(re.search(r'<title[^>]*>(.*?)</title>',html,re.I|re.S).group(1).strip() if re.search(r'<title[^>]*>(.*?)</title>',html,re.I|re.S) else '')
+            scripts=re.findall(r'<script[^>]+src=["\']([^"\']+)',html,re.I); out['scripts']=scripts[:100]
+            tables=re.findall(r'<table\b.*?</table>',html,re.I|re.S); out['table_rows']=[len(re.findall(r'<tr\b.*?</tr>',t,re.I|re.S)) for t in tables[:20]]
+            forms=[]
+            for m in re.finditer(r'<form\b([^>]*)>(.*?)</form>',html,re.I|re.S):
+              attrs=m.group(1); body=m.group(2); action=re.search(r'action=["\']([^"\']*)',attrs,re.I); method=re.search(r'method=["\']([^"\']*)',attrs,re.I)
+              fields=sorted(set(re.findall(r'(?:name|id)=["\']([^"\']+)',body,re.I)))
+              forms.append({'action':action.group(1) if action else '', 'method':method.group(1) if method else '', 'fields':fields[:120]})
+            out['forms']=forms[:20]
+            strings=sorted(set(re.findall(r'["\']([^"\']{3,240})["\']',html)))
+            out['candidates']=[x for x in strings if any(k in x.lower() for k in ['api','medical','center','province','city','ostan','shahr','search','ajax','branch'])][:250]
+            urls_found=sorted(set(re.findall(r'(?:https?://[^"\'\s<>]+|/[A-Za-z0-9_./?=&%-]{3,220})',html)))
+            out['candidate_urls']=[x for x in urls_found if any(k in x.lower() for k in ['api','medical','center','province','city','search'])][:250]
+          else:
+            out['ok']=False
+          out['checked_at_utc']=datetime.datetime.now(datetime.timezone.utc).isoformat()
+          open('DRLINQ_ALBORZ_DISCOVERY.json','w',encoding='utf-8').write(json.dumps(out,ensure_ascii=False,indent=2)+'\n')
+          PY
+      - name: Commit result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DRLINQ_ALBORZ_DISCOVERY.json
+          git commit -m "Record Alborz official centers discovery" || exit 0
+          git push
