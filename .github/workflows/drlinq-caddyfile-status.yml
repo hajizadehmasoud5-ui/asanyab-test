@@ -1,0 +1,42 @@
+name: DrLinq Caddyfile Status
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/drlinq-caddyfile-status.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
+      - name: Read Caddyfile
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+        run: |
+          : "${VPS_PORT:=22}"
+          mkdir -p ~/.ssh
+          ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          sshpass -e ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'cat /opt/drlinq/Caddyfile' > /tmp/caddy.txt
+      - name: Save result
+        run: |
+          python3 - <<'PY'
+          import json,pathlib,datetime
+          pathlib.Path('DRLINQ_CADDY_STATUS.json').write_text(json.dumps({
+            'caddyfile': pathlib.Path('/tmp/caddy.txt').read_text(errors='ignore'),
+            'checked_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat()
+          },ensure_ascii=False,indent=2)+'\n')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DRLINQ_CADDY_STATUS.json
+          git commit -m "Record DrLinq Caddyfile status" || exit 0
+          git push
