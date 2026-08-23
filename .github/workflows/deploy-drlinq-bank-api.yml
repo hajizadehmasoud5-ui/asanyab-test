@@ -14,7 +14,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 
@@ -23,7 +23,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass
 
-      - name: Deploy bank API
+      - name: Deploy bank API and run nationwide ingestion
         id: deploy
         continue-on-error: true
         env:
@@ -40,7 +40,8 @@ jobs:
             'mkdir -p /opt/drlinq/bank-api'
 
           sshpass -e scp -P "$VPS_PORT" -o ConnectTimeout=20 \
-            bank_api/app.py bank_api/schema.sql bank_api/requirements.txt bank_api/Containerfile bank_api/seed_pilot.py \
+            bank_api/app.py bank_api/schema.sql bank_api/requirements.txt bank_api/Containerfile \
+            bank_api/seed_pilot.py bank_api/seed_catalog.py bank_api/ingest_iionline_iran.py \
             "$VPS_USER@$VPS_HOST:/opt/drlinq/bank-api/"
 
           sshpass -e ssh -o ConnectTimeout=20 -o BatchMode=no -o PasswordAuthentication=yes -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'bash -s' > /tmp/deploy.txt 2>/tmp/deploy.err <<'REMOTE'
@@ -100,7 +101,7 @@ jobs:
           docker exec drlinq-caddy caddy reload --config /etc/caddy/Caddyfile
 
           ok=0
-          for i in $(seq 1 30); do
+          for i in $(seq 1 40); do
             if docker exec drlinq-caddy wget -qO- http://bank-api:8000/health >/tmp/bank_health.json 2>/dev/null; then
               ok=1
               break
@@ -109,14 +110,24 @@ jobs:
           done
           test "$ok" = "1"
 
-          echo '--- pilot seed ---'
+          echo '--- catalog seed ---'
+          docker exec drlinq-bank-api python /app/seed_catalog.py
+          echo
+          echo '--- existing Day pilot ---'
           docker exec drlinq-bank-api python /app/seed_pilot.py
           echo
-          echo '--- public health ---'
-          curl -fsS --max-time 20 https://n8n.drlinq.ir/bank/health
+          echo '--- Iran Insurance bulk source ---'
+          set +e
+          docker exec drlinq-bank-api python /app/ingest_iionline_iran.py
+          iran_rc=$?
+          set -e
+          echo "iran_import_rc=$iran_rc"
           echo
           echo '--- public stats ---'
           curl -fsS --max-time 20 https://n8n.drlinq.ir/bank/stats
+          echo
+          echo '--- filters sample ---'
+          curl -fsS --max-time 20 https://n8n.drlinq.ir/bank/filters | head -c 3000
           echo
           REMOTE
 
@@ -131,8 +142,8 @@ jobs:
               return p.read_text(errors='ignore').strip() if p.exists() else ''
           pathlib.Path('DRLINQ_BANK_DEPLOY_STATUS.json').write_text(json.dumps({
               'ok': os.environ.get('OUTCOME') == 'success',
-              'report': r('/tmp/deploy.txt')[-12000:],
-              'error': r('/tmp/deploy.err')[-3000:],
+              'report': r('/tmp/deploy.txt')[-20000:],
+              'error': r('/tmp/deploy.err')[-4000:],
               'checked_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
           }, ensure_ascii=False, indent=2) + '\n')
           PY
