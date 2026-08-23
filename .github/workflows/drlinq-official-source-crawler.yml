@@ -1,0 +1,86 @@
+name: DrLinq Official Source Crawler
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/drlinq-official-source-crawler.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Crawl official insurer sites for treatment-center sources
+        run: |
+          python3 - <<'PY'
+          import json,re,urllib.request,urllib.parse,xml.etree.ElementTree as ET,datetime,time
+          insurers={
+            'iran':'https://iraninsurance.ir/','asia':'https://www.bimehasia.com/','alborz':'https://alborzinsurance.ir/',
+            'dana':'https://www.dana-insurance.ir/','parsian':'https://parsianinsurance.ir/','razi':'https://razi24.ir/',
+            'karafarin':'https://karafarininsurance.ir/','sina':'https://www.sinainsurance.com/','mellat':'https://www.mellatinsurance.com/',
+            'day':'https://dayins.ir/','saman':'https://www.si24.ir/','novin':'https://novininsurance.com/',
+            'pasargad':'https://www.insurancepasargad.com/','moallem':'https://mic.co.ir/','mihan':'https://mihaninsurance.com/',
+            'kosar':'https://www.kins.ir/','ma':'https://bimehma.com/','arman':'https://armanins.com/',
+            'taavon':'https://taavon-ins.ir/','sarmad':'https://sarmadins.ir/','tejarat-no':'https://tejaratnoins.ir/',
+            'hekmat-saba':'https://www.hi24.ir/','asmari':'https://asmari-insurance.com/','hafez':'https://hafezinsurance.ir/',
+            'tamin':'https://www.tamin.ir/','salamat':'https://www.ihio.gov.ir/','atieh-sazan':'https://atiyehsazan.ir/'
+          }
+          keywords=['درمان','مرکز درمان','مراکز درمان','مراجع درمان','دندان','پزشک','بیمارستان','پاراکلین','medical','health','treatment','carecenter','care-center','hospital','clinic']
+          def fetch(url,timeout=15):
+            req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0 DrLinqSourceCrawler/1.0'})
+            with urllib.request.urlopen(req,timeout=timeout) as r:
+              ctype=r.headers.get('content-type',''); raw=r.read(2_500_000)
+              return r.geturl(),ctype,raw.decode('utf-8','ignore')
+          result={}
+          for slug,base in insurers.items():
+            rec={'base':base,'pages':[],'candidates':[],'errors':[]}
+            docs=[]
+            try:
+              final,ctype,home=fetch(base); docs.append((final,home)); rec['pages'].append({'url':final,'bytes':len(home),'type':'home'})
+            except Exception as e:
+              rec['errors'].append('home:'+repr(e)); result[slug]=rec; continue
+            # Try common sitemap locations and only read URL entries; do not recursively crawl the entire site.
+            for sp in ['sitemap.xml','sitemap_index.xml']:
+              try:
+                su=urllib.parse.urljoin(base,sp); final,ctype,txt=fetch(su,10)
+                if '<loc>' in txt:
+                  locs=re.findall(r'<loc>\s*(.*?)\s*</loc>',txt,re.I|re.S)
+                  for loc in locs[:5000]:
+                    decoded=urllib.parse.unquote(loc).lower()
+                    if any(k.lower() in decoded for k in keywords): rec['candidates'].append({'url':loc.strip(),'evidence':'sitemap'})
+                  rec['pages'].append({'url':final,'bytes':len(txt),'type':'sitemap','locs':len(locs)})
+              except Exception as e:
+                pass
+            # Inspect homepage anchors.
+            for page_url,html in docs:
+              for href,text in re.findall(r'<a\b[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)</a>',html,re.I|re.S):
+                label=re.sub(r'<[^>]+>',' ',text); label=re.sub(r'\s+',' ',label).strip()
+                absu=urllib.parse.urljoin(page_url,href)
+                probe=(urllib.parse.unquote(absu)+' '+label).lower()
+                if any(k.lower() in probe for k in keywords):
+                  rec['candidates'].append({'url':absu,'label':label[:180],'evidence':'homepage'})
+            # De-duplicate and keep same-host / close related links first.
+            seen=set(); uniq=[]
+            for x in rec['candidates']:
+              u=x['url']
+              if u in seen: continue
+              seen.add(u); uniq.append(x)
+            rec['candidates']=uniq[:120]
+            result[slug]=rec
+            time.sleep(0.12)
+          result['_checked_at_utc']=datetime.datetime.now(datetime.timezone.utc).isoformat()
+          open('DRLINQ_OFFICIAL_SOURCE_CRAWL.json','w',encoding='utf-8').write(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
+          PY
+      - name: Commit result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DRLINQ_OFFICIAL_SOURCE_CRAWL.json
+          git commit -m "Record official insurer source crawl" || exit 0
+          git push
