@@ -1,0 +1,78 @@
+name: Deploy DrLinq Service Mega Menu
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/drlinq-service-mega-deploy.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: drlinq-bank-vps
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install sshpass
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass
+      - name: Deploy and verify mega menu
+        id: deploy
+        continue-on-error: true
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+        run: |
+          : "${VPS_PORT:=22}"
+          mkdir -p ~/.ssh
+          ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          sshpass -e scp -P "$VPS_PORT" -o ConnectTimeout=20 bank_api/app.py "$VPS_USER@$VPS_HOST:/opt/drlinq/bank-api/app.py"
+          sshpass -e ssh -o ConnectTimeout=20 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'bash -s' > /tmp/mega.txt 2>/tmp/mega.err <<'REMOTE'
+          set -euo pipefail
+          cd /opt/drlinq
+          docker compose -f bank-compose.yml build
+          docker compose -f bank-compose.yml up -d
+          for i in $(seq 1 40); do
+            if curl -fsS https://n8n.drlinq.ir/bank/health >/dev/null 2>&1; then break; fi
+            sleep 2
+          done
+          curl -fsS https://n8n.drlinq.ir/bank/view > /tmp/view.html
+          echo "HEALTH=$(curl -fsS https://n8n.drlinq.ir/bank/health)"
+          echo "MEGA=$(grep -c 'service-mega' /tmp/view.html || true)"
+          echo "CATEGORY=$(grep -c 'service-category' /tmp/view.html || true)"
+          echo "MEDICAL=$(grep -c 'پزشکی' /tmp/view.html || true)"
+          echo "DENTAL=$(grep -c 'دندانپزشکی' /tmp/view.html || true)"
+          test "$(grep -c 'service-mega' /tmp/view.html)" -gt 0
+          test "$(grep -c 'service-category' /tmp/view.html)" -gt 0
+          REMOTE
+      - name: Save status
+        env:
+          OUTCOME: ${{ steps.deploy.outcome }}
+        run: |
+          python3 - <<'PY'
+          import json,pathlib,os,datetime
+          def r(p):
+              x=pathlib.Path(p)
+              return x.read_text(errors='ignore').strip() if x.exists() else ''
+          pathlib.Path('DRLINQ_SERVICE_MEGA_STATUS.json').write_text(json.dumps({
+              'ok':os.environ.get('OUTCOME')=='success',
+              'report':r('/tmp/mega.txt')[-6000:],
+              'error':r('/tmp/mega.err')[-2000:],
+              'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()
+          },ensure_ascii=False,indent=2)+'\n')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DRLINQ_SERVICE_MEGA_STATUS.json
+          git commit -m "Record DrLinq service mega menu deployment" || exit 0
+          git push
