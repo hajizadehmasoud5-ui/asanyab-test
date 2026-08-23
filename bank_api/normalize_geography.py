@@ -72,6 +72,8 @@ def main():
         if target:
             province_by_norm[norm(alias)] = target
 
+    seen_city_keys = set()
+    duplicate_city_rows = 0
     for c in cities:
         name = str(c.get("name") or "").strip()
         parent = c.get("parent")
@@ -83,12 +85,18 @@ def main():
             continue
         if province_id not in province_by_id:
             continue
+        normalized_name = norm(name)
+        city_key = (province_id, normalized_name)
+        if city_key in seen_city_keys:
+            duplicate_city_rows += 1
+            continue
+        seen_city_keys.add(city_key)
         point = c.get("point") or {}
         row = {
             "id": int(c["id"]),
             "province_id": province_id,
             "name": name,
-            "norm": norm(name),
+            "norm": normalized_name,
             "lat": point.get("latitude"),
             "lon": point.get("longitude"),
         }
@@ -100,7 +108,6 @@ def main():
 
     with psycopg.connect(dsn()) as conn:
         with conn.cursor() as cur:
-            # Ensure tables exist even if this script is run before the API restarts.
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS geo_provinces (
                   id INTEGER PRIMARY KEY,
@@ -142,10 +149,10 @@ def main():
                     cur.execute(
                         """INSERT INTO geo_cities(id,province_id,name,normalized_name,latitude,longitude,source_url,updated_at)
                            VALUES (%s,%s,%s,%s,%s,%s,%s,now())
-                           ON CONFLICT(id) DO UPDATE SET
-                             province_id=EXCLUDED.province_id, name=EXCLUDED.name,
-                             normalized_name=EXCLUDED.normalized_name,
-                             latitude=EXCLUDED.latitude, longitude=EXCLUDED.longitude,
+                           ON CONFLICT(province_id, normalized_name) DO UPDATE SET
+                             name=EXCLUDED.name,
+                             latitude=COALESCE(EXCLUDED.latitude,geo_cities.latitude),
+                             longitude=COALESCE(EXCLUDED.longitude,geo_cities.longitude),
                              source_url=EXCLUDED.source_url, updated_at=now()""",
                         (c["id"], c["province_id"], c["name"], c["norm"], c["lat"], c["lon"], CITIES_URL),
                     )
@@ -163,30 +170,23 @@ def main():
                 province = province_by_norm.get(p_norm) if p_norm else None
                 city = None
 
-                # Best case: province and city agree with the canonical hierarchy.
                 if c_norm and province:
                     matches = [x for x in cities_by_norm.get(c_norm, []) if x["province_id"] == province["id"]]
                     if len(matches) == 1:
                         city = matches[0]
 
-                # If the city name is globally unique, it safely determines the province.
                 if c_norm and city is None:
                     matches = cities_by_norm.get(c_norm, [])
                     if len(matches) == 1:
                         city = matches[0]
                         province = province_by_id[city["province_id"]]
 
-                # If city is missing but province is known, infer only from an explicit city name in address.
                 if not c_norm and province and address_norm:
-                    candidates = []
                     for candidate in cities_by_province.get(province["id"], []):
                         needle = candidate["norm"]
-                        if len(needle) < 3:
-                            continue
-                        if needle in address_norm:
-                            candidates.append(candidate)
-                    if candidates:
-                        city = candidates[0]  # sorted longest name first
+                        if len(needle) >= 3 and needle in address_norm:
+                            city = candidate
+                            break
 
                 canonical_province = province["name"] if province else (province_raw or None)
                 canonical_city = city["name"] if city else (city_raw or None)
@@ -207,6 +207,7 @@ def main():
         "ok": True,
         "provinces": len(province_by_id),
         "cities": sum(len(v) for v in cities_by_province.values()),
+        "duplicate_city_rows_removed": duplicate_city_rows,
         "locations_changed": changed,
         "locations_unresolved": unresolved,
     }, ensure_ascii=False))
