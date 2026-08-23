@@ -1,0 +1,65 @@
+name: Verify Raw Provider Filter
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-raw-provider-filter.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wait briefly for deployment queue
+        run: sleep 35
+      - name: Verify live filters
+        run: |
+          set +e
+          BASE='https://n8n.drlinq.ir/bank'
+          curl -fsS "$BASE/health" > /tmp/health.json
+          curl -fsS -G "$BASE/providers" \
+            --data-urlencode 'service=دندانپزشکی' \
+            --data-urlencode 'province=تهران' \
+            --data-urlencode 'city=تهران' \
+            --data-urlencode 'limit=5' > /tmp/raw.json
+          curl -fsS -G "$BASE/providers" \
+            --data-urlencode 'service=دندانپزشکی' \
+            --data-urlencode 'insurer=بیمه البرز' \
+            --data-urlencode 'province=تهران' \
+            --data-urlencode 'city=تهران' \
+            --data-urlencode 'limit=5' > /tmp/insured.json
+          curl -fsS -G "$BASE/filters" \
+            --data-urlencode 'province=خوزستان' \
+            --data-urlencode 'city=اهواز' > /tmp/geo.json
+          python3 - <<'PY'
+          import json, pathlib, datetime
+          def load(p):
+              try: return json.loads(pathlib.Path(p).read_text())
+              except Exception as e: return {'_error': str(e), '_text': pathlib.Path(p).read_text(errors='ignore')[:1000] if pathlib.Path(p).exists() else ''}
+          health=load('/tmp/health.json'); raw=load('/tmp/raw.json'); insured=load('/tmp/insured.json'); geo=load('/tmp/geo.json')
+          report={
+            'ok': bool(health.get('ok')) and isinstance(raw.get('items'), list) and isinstance(insured.get('items'), list),
+            'health': health,
+            'raw_tehran_dentistry_count_returned': len(raw.get('items', [])),
+            'raw_tehran_dentistry_names': [x.get('name') for x in raw.get('items', [])],
+            'insured_alborz_tehran_dentistry_count_returned': len(insured.get('items', [])),
+            'insured_alborz_tehran_dentistry_names': [x.get('name') for x in insured.get('items', [])],
+            'ahvaz_district_count': len(geo.get('districts', [])),
+            'ahvaz_district_sample': geo.get('districts', [])[:20],
+            'checked_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+          }
+          pathlib.Path('DRLINQ_RAW_FILTER_VERIFY.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
+          PY
+      - name: Commit verification
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add DRLINQ_RAW_FILTER_VERIFY.json
+          git commit -m 'Record raw provider filter verification' || exit 0
+          git push
