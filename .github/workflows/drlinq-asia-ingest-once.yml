@@ -7,6 +7,10 @@ on:
       - '.github/workflows/drlinq-asia-ingest-once.yml'
   workflow_dispatch:
 
+concurrency:
+  group: drlinq-bank-vps
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -29,7 +33,8 @@ jobs:
           : "${VPS_PORT:=22}"
           mkdir -p ~/.ssh
           ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
-          sshpass -e scp -P "$VPS_PORT" bank_api/Containerfile bank_api/requirements.txt bank_api/schema.sql bank_api/app.py bank_api/seed_catalog.py bank_api/seed_pilot.py bank_api/ingest_iionline_iran.py bank_api/ingest_dana_public.py bank_api/ingest_asia_official.py bank_api/refresh_all.py "$VPS_USER@$VPS_HOST:/opt/drlinq/bank-api/"
+          sshpass -e ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'mkdir -p /opt/drlinq/bank-api'
+          sshpass -e scp -P "$VPS_PORT" bank_api/*.py bank_api/schema.sql bank_api/requirements.txt bank_api/Containerfile "$VPS_USER@$VPS_HOST:/opt/drlinq/bank-api/"
           sshpass -e ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'bash -s' > /tmp/out.txt 2>/tmp/err.txt <<'REMOTE'
           set -euo pipefail
           cd /opt/drlinq
@@ -40,6 +45,7 @@ jobs:
             sleep 2
           done
           docker exec drlinq-bank-api python /app/seed_catalog.py
+          docker exec drlinq-bank-api python /app/cleanup_catalog.py || true
           echo 'ASIA:'
           timeout 1500 docker exec drlinq-bank-api python /app/ingest_asia_official.py
           echo 'STATS:'
