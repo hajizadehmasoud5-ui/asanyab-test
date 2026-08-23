@@ -4,13 +4,16 @@ on:
   push:
     branches: [main]
     paths:
-      - 'bank_api/**'
+      - 'bank_api/app.py'
+      - 'bank_api/schema.sql'
+      - 'bank_api/requirements.txt'
+      - 'bank_api/Containerfile'
       - '.github/workflows/deploy-drlinq-bank-api.yml'
   workflow_dispatch:
 
 concurrency:
   group: drlinq-bank-vps
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: write
