@@ -1,0 +1,36 @@
+name: Add DrLinq Bank Entry
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/add-drlinq-bank-entry.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add bank link to main site safely
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          text=p.read_text(encoding='utf-8')
+          marker='DRLINQ_BANK_ENTRY_V1'
+          if marker not in text:
+              block='''\n<!-- DRLINQ_BANK_ENTRY_V1 -->\n<a href="/bank.html" aria-label="بانک بیمه‌ها و مراکز" style="position:fixed;left:18px;bottom:18px;z-index:9999;background:#1769e0;color:#fff;text-decoration:none;border-radius:14px;padding:12px 16px;font-family:Tahoma,Arial,sans-serif;font-size:12px;font-weight:800;box-shadow:0 10px 28px rgba(0,0,0,.2)">بانک بیمه‌ها و مراکز</a>\n'''
+              if '</body>' not in text:
+                  raise SystemExit('index.html has no closing body tag')
+              text=text.replace('</body>',block+'</body>',1)
+              p.write_text(text,encoding='utf-8')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Expose provider bank from DrLinq homepage" || exit 0
+          git push
