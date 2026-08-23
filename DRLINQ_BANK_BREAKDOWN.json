@@ -1,4 +1,328 @@
 {
-  "raw": "",
-  "checked_at_utc": "2026-08-23T19:11:55.770127+00:00"
+  "totals": {
+    "providers": 1029,
+    "locations": 1015,
+    "contracts": 1041,
+    "insurer_catalog": 32,
+    "insurers_with_data": 4,
+    "sources": 3,
+    "services": 92
+  },
+  "by_insurer": [
+    {
+      "name": "بیمه آسیا",
+      "slug": "asia",
+      "contracts": 799,
+      "providers": 799,
+      "locations": 798,
+      "official_contracts": 799,
+      "secondary_contracts": 0
+    },
+    {
+      "name": "بیمه دانا",
+      "slug": "dana",
+      "contracts": 218,
+      "providers": 218,
+      "locations": 205,
+      "official_contracts": 0,
+      "secondary_contracts": 218
+    },
+    {
+      "name": "بیمه دی",
+      "slug": "day",
+      "contracts": 12,
+      "providers": 12,
+      "locations": 12,
+      "official_contracts": 0,
+      "secondary_contracts": 12
+    },
+    {
+      "name": "بیمه دی",
+      "slug": "day-insurance",
+      "contracts": 12,
+      "providers": 12,
+      "locations": 12,
+      "official_contracts": 0,
+      "secondary_contracts": 12
+    }
+  ],
+  "by_source": [
+    {
+      "name": "مراجع درمانی طرف قرارداد بیمه آسیا",
+      "url": "https://www.bimehasia.com/%D9%85%D8%B1%D8%A7%DA%A9%D8%B2-%D8%A7%D8%B1%D8%A7%DB%8C%D9%87-%D8%AE%D8%AF%D9%85%D8%A7%D8%AA/%D9%85%D8%B1%D8%A7%D8%AC%D8%B9-%D8%AF%D8%B1%D9%85%D8%A7%D9%86%DB%8C-%D8%B7%D8%B1%D9%81-%D9%82%D8%B1%D8%A7%D8%B1%D8%AF%D8%A7%D8%AF",
+      "source_type": "official",
+      "contracts": 799,
+      "providers": 799,
+      "last_verified_at": "2026-08-23 19:10:09.830316+00:00"
+    },
+    {
+      "name": "سامانه عمومی مراکز بیمه دانا",
+      "url": "https://dana1404.ir/centers",
+      "source_type": "secondary",
+      "contracts": 218,
+      "providers": 218,
+      "last_verified_at": "2026-08-23 18:58:58.161068+00:00"
+    },
+    {
+      "name": "Azki - Day Insurance contracted treatment centers",
+      "url": "https://www.azki.com/blog/day-insurance-contract-treatment-centers/",
+      "source_type": "secondary",
+      "contracts": 24,
+      "providers": 12,
+      "last_verified_at": "2026-08-23 19:08:46.513366+00:00"
+    }
+  ],
+  "by_province": [
+    {
+      "province": "ایلام",
+      "providers": 224
+    },
+    {
+      "province": "تهران",
+      "providers": 140
+    },
+    {
+      "province": "خوزستان",
+      "providers": 70
+    },
+    {
+      "province": "اصفهان",
+      "providers": 60
+    },
+    {
+      "province": "خراسان رضوی",
+      "providers": 57
+    },
+    {
+      "province": "آذربایجان شرقی",
+      "providers": 49
+    },
+    {
+      "province": "گیلان",
+      "providers": 46
+    },
+    {
+      "province": "مازندران",
+      "providers": 42
+    },
+    {
+      "province": "فارس",
+      "providers": 35
+    },
+    {
+      "province": "البرز",
+      "providers": 32
+    },
+    {
+      "province": "قزوین",
+      "providers": 24
+    },
+    {
+      "province": "آذربایجان غربی",
+      "providers": 21
+    },
+    {
+      "province": "مرکزی",
+      "providers": 21
+    },
+    {
+      "province": "یزد",
+      "providers": 19
+    },
+    {
+      "province": "گلستان",
+      "providers": 16
+    },
+    {
+      "province": "اردبیل",
+      "providers": 16
+    },
+    {
+      "province": "کرمان",
+      "providers": 15
+    },
+    {
+      "province": "لرستان",
+      "providers": 15
+    },
+    {
+      "province": "کردستان",
+      "providers": 15
+    },
+    {
+      "province": "همدان",
+      "providers": 15
+    },
+    {
+      "province": "چهارمحال بختیاری",
+      "providers": 15
+    },
+    {
+      "province": "کهکیلویه و بویراحمد",
+      "providers": 15
+    },
+    {
+      "province": "سیستان و بلوچستان",
+      "providers": 11
+    },
+    {
+      "province": "بوشهر",
+      "providers": 10
+    },
+    {
+      "province": "هرمزگان",
+      "providers": 9
+    },
+    {
+      "province": "سمنان",
+      "providers": 8
+    },
+    {
+      "province": "خراسان جنوبی",
+      "providers": 7
+    },
+    {
+      "province": "خراسان شمالی",
+      "providers": 7
+    },
+    {
+      "province": "کرمانشاه",
+      "providers": 5
+    },
+    {
+      "province": "قم",
+      "providers": 5
+    },
+    {
+      "province": "زنجان",
+      "providers": 5
+    }
+  ],
+  "top_services": [
+    {
+      "name": "آزمایشگاه",
+      "providers": 795
+    },
+    {
+      "name": "دندانپزشکی",
+      "providers": 80
+    },
+    {
+      "name": "داروخانه",
+      "providers": 33
+    },
+    {
+      "name": "درمانگاه",
+      "providers": 23
+    },
+    {
+      "name": "فیزیوتراپی",
+      "providers": 22
+    },
+    {
+      "name": "پزشک عمومی",
+      "providers": 10
+    },
+    {
+      "name": "بیمارستان",
+      "providers": 9
+    },
+    {
+      "name": "عینک فروشی/ عینک سازی",
+      "providers": 8
+    },
+    {
+      "name": "متخصص داخلی",
+      "providers": 8
+    },
+    {
+      "name": "قلب و عروق",
+      "providers": 8
+    },
+    {
+      "name": "مطب",
+      "providers": 3
+    },
+    {
+      "name": "کودکان",
+      "providers": 3
+    },
+    {
+      "name": "سونوگرافی",
+      "providers": 2
+    },
+    {
+      "name": "کلیه و نفرولوژی",
+      "providers": 2
+    },
+    {
+      "name": "مغز و اعصاب",
+      "providers": 2
+    },
+    {
+      "name": "چشم پزشکی",
+      "providers": 2
+    },
+    {
+      "name": "متخصص استخوان و مفاصل",
+      "providers": 2
+    },
+    {
+      "name": "رادیولوژی",
+      "providers": 2
+    },
+    {
+      "name": "فیزییوتراپی",
+      "providers": 2
+    },
+    {
+      "name": "MRI",
+      "providers": 2
+    },
+    {
+      "name": "اپتومتریست ( صرفا ویزیت )",
+      "providers": 1
+    },
+    {
+      "name": "داروخاته",
+      "providers": 1
+    },
+    {
+      "name": "رادیوگرافی فک و صورت",
+      "providers": 1
+    },
+    {
+      "name": "زنان و زایمان",
+      "providers": 1
+    },
+    {
+      "name": "فوق تخصص پیوند قرنیه",
+      "providers": 1
+    },
+    {
+      "name": "جراح و متخصص گوش و حلق و بینی",
+      "providers": 1
+    },
+    {
+      "name": "متخصص جراحی لثه",
+      "providers": 1
+    },
+    {
+      "name": "دندنپزشکی",
+      "providers": 1
+    },
+    {
+      "name": "سنگ شكن",
+      "providers": 1
+    },
+    {
+      "name": "متخصص پوست ومو",
+      "providers": 1
+    },
+    {
+      "name": "پزشکی هسته ای",
+      "providers": 1
+    }
+  ],
+  "checked_at_utc": "2026-08-23T19:12:36.129428+00:00"
 }
