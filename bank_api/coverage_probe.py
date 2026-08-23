@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
-from app import selection_count
+from app_geo import raw_selection_count
 
 SERVICES = [
     "داروخانه",
@@ -29,7 +29,7 @@ def main() -> None:
         for service in SERVICES:
             try:
                 coverage[key][service] = {
-                    "count": selection_count(service=service, province=province, city=city)
+                    "count": raw_selection_count(service=service, province=province, city=city)
                 }
             except Exception as exc:
                 coverage[key][service] = {"error": str(exc)}
