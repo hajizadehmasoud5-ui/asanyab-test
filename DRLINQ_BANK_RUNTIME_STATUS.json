@@ -1,6 +1,6 @@
 {
   "connected": true,
-  "report": "BANK_DIR=yes\nBANK_COMPOSE=yes\nCADDY_ROUTE=0\ndrlinq-bank-api|Up 44 seconds\nPUBLIC_HTTP=200\n<!DOCTYPE html>\n<html lang=\"en\">\n\t<head>\n\t\t<meta charset=\"utf-8\" />\n\t\t<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\" />\n\t\t<meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\" />\n\t\t<link rel=\"icon\" href=\"/favicon.ico\" />\n\t\t<meta name=\"n8n:config:rest-endpoint\" content=\"cmVzdA==\"><meta name=\"n8n:config:sentry\" content=\"eyJkc24iOiIiLCJlbnZpcm9ubWVudCI6ImRldmVsb3BtZW50IiwicmVsZWFzZSI6Im44bkAyLjM1LjcifQ==\">\n\t\t<link rel=\"stylesheet\" href=\"/static/prefers-color-scheme.css\">\n\t\t<scr",
+  "report": "BANK_DIR=yes\nBANK_COMPOSE=yes\nCADDY_ROUTE=1\ndrlinq-bank-api|Up About a minute\nHEALTH_HTTP=200\n{\"ok\":true,\"service\":\"drlinq-bank-api\"}\nVIEW_HTTP=200\n<title>بانک مراکز دکترلینک</title>\nبانک مراکز دکترلینک",
   "error": "",
-  "checked_at_utc": "2026-08-23T18:40:43.305112+00:00"
+  "checked_at_utc": "2026-08-23T18:48:09.266854+00:00"
 }
