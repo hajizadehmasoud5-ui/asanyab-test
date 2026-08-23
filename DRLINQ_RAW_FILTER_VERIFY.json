@@ -1,0 +1,35 @@
+{
+  "ok": true,
+  "health": {
+    "ok": true,
+    "service": "drlinq-bank-api"
+  },
+  "raw_tehran_dentistry_count_returned": 5,
+  "raw_tehran_dentistry_names": [
+    "600",
+    "د رمانگاه دندانپزشکی دکتر جنتی",
+    "درمانگاه تخصصی دندانپزشکی سپیدفام",
+    "درمانگاه تخصصی دندانپزشکی مهران",
+    "درمانگاه تخصصی دندانپزشکی کشاورز"
+  ],
+  "insured_alborz_tehran_dentistry_count_returned": 0,
+  "insured_alborz_tehran_dentistry_names": [],
+  "ahvaz_district_count": 14,
+  "ahvaz_district_sample": [
+    "امانیه",
+    "باهنر",
+    "حصیرآباد",
+    "زیتون کارمندی",
+    "سپیدار",
+    "ملی‌راه",
+    "پادادشهر",
+    "پردیس",
+    "کمپلو",
+    "کوی ملت",
+    "کیانشهر",
+    "کیانپارس",
+    "کیان‌آباد",
+    "گلستان"
+  ],
+  "checked_at_utc": "2026-08-23T21:09:46.284419+00:00"
+}
