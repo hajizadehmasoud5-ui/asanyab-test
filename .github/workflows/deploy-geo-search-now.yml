@@ -1,6 +1,6 @@
 name: Deploy Geo Search Now
 
-# retry after source-city deduplication
+# retry with internal city IDs
 on:
   push:
     branches: [main]
