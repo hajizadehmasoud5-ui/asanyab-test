@@ -39,7 +39,8 @@ jobs:
           sshpass -e ssh -o ConnectTimeout=20 -o BatchMode=no -o PasswordAuthentication=yes -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
             'mkdir -p /opt/drlinq/bank-api'
 
-          sshpass -e scp -P "$VPS_PORT" -o ConnectTimeout=20 bank_api/app.py bank_api/schema.sql bank_api/requirements.txt bank_api/Containerfile \
+          sshpass -e scp -P "$VPS_PORT" -o ConnectTimeout=20 \
+            bank_api/app.py bank_api/schema.sql bank_api/requirements.txt bank_api/Containerfile bank_api/seed_pilot.py \
             "$VPS_USER@$VPS_HOST:/opt/drlinq/bank-api/"
 
           sshpass -e ssh -o ConnectTimeout=20 -o BatchMode=no -o PasswordAuthentication=yes -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'bash -s' > /tmp/deploy.txt 2>/tmp/deploy.err <<'REMOTE'
@@ -108,8 +109,8 @@ jobs:
           done
           test "$ok" = "1"
 
-          echo '--- local health ---'
-          cat /tmp/bank_health.json
+          echo '--- pilot seed ---'
+          docker exec drlinq-bank-api python /app/seed_pilot.py
           echo
           echo '--- public health ---'
           curl -fsS --max-time 20 https://n8n.drlinq.ir/bank/health
