@@ -48,8 +48,6 @@ jobs:
           echo 'INTERNAL_RAW_COUNT:'
           docker exec drlinq-bank-api python -c "from app_geo import raw_selection_count; print(raw_selection_count(service='داروخانه',province='تهران',city='تهران'))"
           echo 'SERVICE_ROWS:'
-          docker exec drlinq-bank-api python - <<'PY'
-          PY
           docker exec drlinq-bank-api python -c "from app import db; c=db(); conn=c.__enter__(); rows=conn.execute(\"SELECT s.name,s.normalized_name,count(DISTINCT p.id) n FROM bank_provider_services ps JOIN bank_services s ON s.id=ps.service_id JOIN bank_providers p ON p.id=ps.provider_id JOIN bank_provider_locations pl ON pl.provider_id=p.id JOIN bank_locations l ON l.id=pl.location_id WHERE l.province='تهران' AND l.city='تهران' AND (s.name ILIKE '%دارو%' OR p.provider_type ILIKE '%دارو%') GROUP BY s.name,s.normalized_name ORDER BY n DESC\").fetchall(); print([(r['name'],r['normalized_name'],r['n']) for r in rows]); c.__exit__(None,None,None)"
           REMOTE
       - name: Save debug status
@@ -71,3 +69,5 @@ jobs:
           git add DRLINQ_PHARMACY_COUNT_DEBUG.json
           git commit -m "Record pharmacy count consistency debug" || exit 0
           git push
+
+# retrigger
