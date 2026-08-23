@@ -32,7 +32,7 @@ jobs:
           : "${VPS_PORT:=22}"
           mkdir -p ~/.ssh
           ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
-          sshpass -e ssh -o ConnectTimeout=20 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'docker exec drlinq-bank-api python -' > /tmp/coverage.json <<'PY'
+          sshpass -e ssh -o ConnectTimeout=20 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'docker exec -i drlinq-bank-api python -' > /tmp/coverage.json <<'PY'
           import json,datetime
           from app import selection_count
           services=['داروخانه','دندانپزشکی','آزمایشگاه','فیزیوتراپی','رادیولوژی','بیمارستان','درمانگاه']
@@ -53,7 +53,7 @@ jobs:
           OUTCOME: ${{ steps.query.outcome }}
         run: |
           python3 - <<'PY'
-          import json,pathlib,os,datetime
+          import json,pathlib,os
           p=pathlib.Path('/tmp/coverage.json')
           if p.exists() and p.read_text(errors='ignore').strip():
               try: data=json.loads(p.read_text())
