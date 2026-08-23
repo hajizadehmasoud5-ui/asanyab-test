@@ -47,6 +47,7 @@ jobs:
           docker exec drlinq-bank-api python /app/seed_catalog.py
           docker exec drlinq-bank-api python /app/cleanup_catalog.py || true
           echo 'ASIA:'
+          # Restarted after deployment concurrency was stabilized; ingestion is idempotent.
           timeout 1500 docker exec drlinq-bank-api python /app/ingest_asia_official.py
           echo 'STATS:'
           curl -fsS https://n8n.drlinq.ir/bank/stats
