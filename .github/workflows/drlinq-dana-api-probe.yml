@@ -1,0 +1,45 @@
+name: DrLinq Dana API Probe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/drlinq-dana-api-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe public API
+        run: |
+          python3 - <<'PY'
+          import json,urllib.request,datetime
+          url='https://dana1404.ir/api/centers'
+          req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0 DrLinqProbe/1.0','Accept':'application/json'})
+          try:
+            raw=urllib.request.urlopen(req,timeout=30).read().decode('utf-8','ignore')
+            data=json.loads(raw)
+            if isinstance(data,list): sample=data[:3]; count=len(data); shape='list'
+            elif isinstance(data,dict):
+              shape='dict'; count=None; sample={k:(v[:3] if isinstance(v,list) else v) for k,v in list(data.items())[:20]}
+              for k,v in data.items():
+                if isinstance(v,list): count=len(v); break
+            else: shape=type(data).__name__; count=None; sample=str(data)[:1000]
+            out={'ok':True,'url':url,'shape':shape,'count':count,'sample':sample,'raw_prefix':raw[:2500]}
+          except Exception as e:
+            out={'ok':False,'url':url,'error':str(e)}
+          out['checked_at_utc']=datetime.datetime.now(datetime.timezone.utc).isoformat()
+          open('DRLINQ_DANA_API_PROBE.json','w',encoding='utf-8').write(json.dumps(out,ensure_ascii=False,indent=2)+'\n')
+          PY
+      - name: Commit result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DRLINQ_DANA_API_PROBE.json
+          git commit -m "Record Dana public centers API probe" || exit 0
+          git push
