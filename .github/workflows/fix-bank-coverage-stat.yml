@@ -1,0 +1,38 @@
+name: Fix DrLinq Bank Coverage Stat
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-bank-coverage-stat.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Make insurer coverage metric explicit
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('bank_api/app.py')
+          text=p.read_text(encoding='utf-8')
+          old="(SELECT count(*) FROM bank_insurers WHERE active) AS insurers,"
+          new="(SELECT count(*) FROM bank_insurers WHERE active) AS insurers,\n              (SELECT count(DISTINCT insurer_id) FROM bank_contracts WHERE status='active') AS insurers_with_data,"
+          if old in text and 'insurers_with_data' not in text:
+              text=text.replace(old,new,1)
+          old_ui="<div class='stat'><b>{summary.get('insurers',0)}</b><span>بیمه ثبت‌شده</span></div>"
+          new_ui="<div class='stat'><b>{summary.get('insurers_with_data',0)} / {summary.get('insurers',0)}</b><span>بیمه دارای داده / فهرست</span></div>"
+          if old_ui in text:
+              text=text.replace(old_ui,new_ui,1)
+          p.write_text(text,encoding='utf-8')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bank_api/app.py
+          git commit -m "Clarify insurer data coverage on bank UI" || exit 0
+          git push
