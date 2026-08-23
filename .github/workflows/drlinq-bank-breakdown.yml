@@ -29,7 +29,7 @@ jobs:
           ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
           sshpass -e ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'bash -s' > /tmp/report.txt <<'REMOTE'
           set -euo pipefail
-          docker exec drlinq-bank-api python - <<'PY'
+          docker exec -i drlinq-bank-api python - <<'PY'
           import os,json,psycopg
           from psycopg.rows import dict_row
           dsn=' '.join([f"host={os.environ.get('DB_HOST','postgres')}",f"port={os.environ.get('DB_PORT','5432')}",f"dbname={os.environ['DB_NAME']}",f"user={os.environ['DB_USER']}",f"password={os.environ['DB_PASSWORD']}"])
@@ -37,7 +37,7 @@ jobs:
             insurers=c.execute('''SELECT i.name,i.slug,count(*) contracts,count(DISTINCT c.provider_id) providers,count(DISTINCT c.location_id) locations,
               count(*) FILTER (WHERE c.confidence='official') official_contracts,count(*) FILTER (WHERE c.confidence<>'official') secondary_contracts
               FROM bank_contracts c JOIN bank_insurers i ON i.id=c.insurer_id WHERE c.status='active' GROUP BY i.id,i.name,i.slug ORDER BY contracts DESC''').fetchall()
-            sources=c.execute('''SELECT s.name,s.url,s.source_type,count(*) contracts,count(DISTINCT c.provider_id) providers,max(c.last_verified_at) last_verified_at
+            sources=c.execute('''SELECT s.name,s.url,s.source_type,count(c.id) contracts,count(DISTINCT c.provider_id) providers,max(c.last_verified_at) last_verified_at
               FROM bank_sources s LEFT JOIN bank_contracts c ON c.source_id=s.id AND c.status='active' GROUP BY s.id,s.name,s.url,s.source_type ORDER BY contracts DESC''').fetchall()
             provinces=c.execute('''SELECT l.province,count(DISTINCT c.provider_id) providers FROM bank_contracts c JOIN bank_locations l ON l.id=c.location_id WHERE c.status='active' GROUP BY l.province ORDER BY providers DESC''').fetchall()
             services=c.execute('''SELECT s.name,count(DISTINCT ps.provider_id) providers FROM bank_provider_services ps JOIN bank_services s ON s.id=ps.service_id GROUP BY s.id,s.name ORDER BY providers DESC LIMIT 100''').fetchall()
