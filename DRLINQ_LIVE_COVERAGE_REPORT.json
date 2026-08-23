@@ -1,51 +1,5 @@
 {
-  "coverage": {
-    "تهران/تهران": {
-      "داروخانه": {
-        "error": "HTTP Error 403: Forbidden"
-      },
-      "دندانپزشکی": {
-        "error": "HTTP Error 403: Forbidden"
-      },
-      "آزمایشگاه": {
-        "error": "HTTP Error 403: Forbidden"
-      },
-      "فیزیوتراپی": {
-        "error": "HTTP Error 403: Forbidden"
-      },
-      "تصویربرداری پزشکی": {
-        "error": "HTTP Error 403: Forbidden"
-      },
-      "بیمارستان": {
-        "error": "HTTP Error 403: Forbidden"
-      },
-      "کلینیک پزشکی": {
-        "error": "HTTP Error 403: Forbidden"
-      }
-    },
-    "خوزستان/اهواز": {
-      "داروخانه": {
-        "error": "HTTP Error 403: Forbidden"
-      },
-      "دندانپزشکی": {
-        "error": "HTTP Error 403: Forbidden"
-      },
-      "آزمایشگاه": {
-        "error": "HTTP Error 403: Forbidden"
-      },
-      "فیزیوتراپی": {
-        "error": "HTTP Error 403: Forbidden"
-      },
-      "تصویربرداری پزشکی": {
-        "error": "HTTP Error 403: Forbidden"
-      },
-      "بیمارستان": {
-        "error": "HTTP Error 403: Forbidden"
-      },
-      "کلینیک پزشکی": {
-        "error": "HTTP Error 403: Forbidden"
-      }
-    }
-  },
-  "checked_at_utc": "2026-08-23T21:31:16.589065+00:00"
+  "ok": false,
+  "error": "coverage query produced no output",
+  "workflow_ok": true
 }
