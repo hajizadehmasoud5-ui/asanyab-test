@@ -1,0 +1,66 @@
+name: DrLinq Dana Ingest Once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/drlinq-dana-ingest-once.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
+      - name: Deploy importer and ingest Dana
+        id: run
+        continue-on-error: true
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+        run: |
+          : "${VPS_PORT:=22}"
+          mkdir -p ~/.ssh
+          ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          sshpass -e scp -P "$VPS_PORT" bank_api/Containerfile bank_api/requirements.txt bank_api/schema.sql bank_api/app.py bank_api/seed_catalog.py bank_api/seed_pilot.py bank_api/ingest_iionline_iran.py bank_api/ingest_dana_public.py "$VPS_USER@$VPS_HOST:/opt/drlinq/bank-api/"
+          sshpass -e ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'bash -s' > /tmp/out.txt 2>/tmp/err.txt <<'REMOTE'
+          set -euo pipefail
+          cd /opt/drlinq
+          docker compose -f bank-compose.yml build
+          docker compose -f bank-compose.yml up -d
+          for i in $(seq 1 40); do
+            docker exec drlinq-bank-api python -c 'import requests,bs4,psycopg' >/dev/null 2>&1 && break
+            sleep 2
+          done
+          docker exec drlinq-bank-api python /app/seed_catalog.py
+          echo 'DANA:'
+          docker exec drlinq-bank-api python /app/ingest_dana_public.py
+          echo 'STATS:'
+          curl -fsS https://n8n.drlinq.ir/bank/stats
+          echo
+          REMOTE
+      - name: Save result
+        env:
+          OUTCOME: ${{ steps.run.outcome }}
+        run: |
+          python3 - <<'PY'
+          import json,pathlib,os,datetime
+          def r(p):
+            x=pathlib.Path(p); return x.read_text(errors='ignore').strip() if x.exists() else ''
+          pathlib.Path('DRLINQ_DANA_INGEST_STATUS.json').write_text(json.dumps({
+            'ok':os.environ.get('OUTCOME')=='success','report':r('/tmp/out.txt')[-18000:],'error':r('/tmp/err.txt')[-4000:],
+            'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()
+          },ensure_ascii=False,indent=2)+'\n')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DRLINQ_DANA_INGEST_STATUS.json
+          git commit -m "Record Dana ingestion result" || exit 0
+          git push
