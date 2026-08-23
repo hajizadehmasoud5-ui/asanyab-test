@@ -5,9 +5,9 @@ from datetime import datetime, timezone
 
 JOBS = [
     ("catalog", [sys.executable, "/app/seed_catalog.py"], 120),
+    ("catalog-cleanup", [sys.executable, "/app/cleanup_catalog.py"], 120),
     ("dana-public", [sys.executable, "/app/ingest_dana_public.py"], 180),
     ("asia-official", [sys.executable, "/app/ingest_asia_official.py"], 1200),
-    ("iran-secondary", [sys.executable, "/app/ingest_iionline_iran.py"], 300),
 ]
 
 
