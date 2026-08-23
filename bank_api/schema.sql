@@ -54,7 +54,8 @@ CREATE TABLE IF NOT EXISTS geo_provinces (
 );
 
 CREATE TABLE IF NOT EXISTS geo_cities (
-  id INTEGER PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
+  source_id INTEGER,
   province_id INTEGER NOT NULL REFERENCES geo_provinces(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   normalized_name TEXT NOT NULL,
