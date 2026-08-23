@@ -43,6 +43,30 @@ CREATE TABLE IF NOT EXISTS bank_locations (
 );
 CREATE INDEX IF NOT EXISTS idx_bank_locations_geo ON bank_locations(province, city, district);
 
+CREATE TABLE IF NOT EXISTS geo_provinces (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  normalized_name TEXT NOT NULL UNIQUE,
+  latitude DOUBLE PRECISION,
+  longitude DOUBLE PRECISION,
+  source_url TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS geo_cities (
+  id INTEGER PRIMARY KEY,
+  province_id INTEGER NOT NULL REFERENCES geo_provinces(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  normalized_name TEXT NOT NULL,
+  latitude DOUBLE PRECISION,
+  longitude DOUBLE PRECISION,
+  source_url TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(province_id, normalized_name)
+);
+CREATE INDEX IF NOT EXISTS idx_geo_cities_province ON geo_cities(province_id, normalized_name);
+CREATE INDEX IF NOT EXISTS idx_geo_cities_name ON geo_cities(normalized_name);
+
 CREATE TABLE IF NOT EXISTS bank_provider_locations (
   provider_id UUID NOT NULL REFERENCES bank_providers(id) ON DELETE CASCADE,
   location_id UUID NOT NULL REFERENCES bank_locations(id) ON DELETE CASCADE,
