@@ -46,7 +46,6 @@ jobs:
             --data-urlencode 'province=تهران' \
             --data-urlencode 'city=تهران' \
             --data-urlencode 'limit=200' | python3 -c 'import sys,json; print(len(json.load(sys.stdin).get("items",[])))'
-
           docker cp /opt/drlinq/bank-api/import_batches/import_discovered.py drlinq-bank-api:/app/import_discovered.py
           docker cp /opt/drlinq/bank-api/import_batches/backfill_tehran_regions.py drlinq-bank-api:/app/backfill_tehran_regions.py
           docker cp /opt/drlinq/bank-api/import_batches/dental_tehran_20260824.json drlinq-bank-api:/tmp/dental_tehran_20260824.json
@@ -88,3 +87,5 @@ jobs:
           git add DRLINQ_DENTAL_TEHRAN_IMPORT_STATUS.json
           git commit -m "Record Tehran dental discovery import" || exit 0
           git push
+
+# retrigger
