@@ -42,6 +42,7 @@ jobs:
             if curl -fsS https://n8n.drlinq.ir/bank/health >/dev/null 2>&1; then break; fi
             sleep 2
           done
+          docker cp /opt/drlinq/bank-api/seed_alborz_ahvaz_dentistry.py drlinq-bank-api:/app/seed_alborz_ahvaz_dentistry.py
           echo 'SEED:'
           docker exec drlinq-bank-api python /app/seed_alborz_ahvaz_dentistry.py
           echo
