@@ -1,0 +1,66 @@
+name: DrLinq Saman Darmanet Discovery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/drlinq-saman-darmanet-discovery.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Discover provider portal data endpoints
+        run: |
+          python3 - <<'PY'
+          import json,re,urllib.request,urllib.parse,datetime
+          urls=['https://providers.darmanet.ir/','https://darmanet.ir/table','https://darmanet.com/marakezdarman/']
+          result={'tries':[]}
+          html=None; final=None
+          def fetch(u):
+            req=urllib.request.Request(u,headers={'User-Agent':'Mozilla/5.0 DrLinqDiscovery/1.0','Accept':'text/html,application/xhtml+xml,application/json'})
+            with urllib.request.urlopen(req,timeout=25) as r:
+              return r.geturl(),r.status,r.headers.get('content-type',''),r.read(3_000_000).decode('utf-8','ignore')
+          for u in urls:
+            try:
+              f,s,c,h=fetch(u); result['tries'].append({'url':u,'final':f,'status':s,'type':c,'bytes':len(h)})
+              if len(h)>500: html=h; final=f; break
+            except Exception as e:
+              result['tries'].append({'url':u,'error':repr(e)})
+          if html:
+            result['ok']=True; result['final_url']=final
+            result['title']=(re.search(r'<title[^>]*>(.*?)</title>',html,re.I|re.S).group(1).strip() if re.search(r'<title[^>]*>(.*?)</title>',html,re.I|re.S) else '')
+            scripts=[urllib.parse.urljoin(final,s) for s in re.findall(r'<script[^>]+src=["\']([^"\']+)',html,re.I)]
+            result['scripts']=scripts[:100]
+            chunks=[]
+            for su in scripts[:50]:
+              try:
+                sf,ss,sc,js=fetch(su)
+                candidates=sorted(set(re.findall(r'(?:https?://[^"\'\s)<>]+|/[A-Za-z0-9_./?=&%${}-]{3,220})',js)))
+                candidates=[x for x in candidates if any(k in x.lower() for k in ['api','provider','center','province','city','special','medical','search','service'])]
+                strings=sorted(set(re.findall(r'["\']([^"\']{3,220})["\']',js)))
+                strings=[x for x in strings if any(k in x.lower() for k in ['api','provider','center','province','city','special','medical','search','service'])]
+                if candidates or strings:
+                  chunks.append({'url':sf,'bytes':len(js),'urls':candidates[:150],'strings':strings[:150]})
+              except Exception as e:
+                pass
+            result['chunks']=chunks[:30]
+            result['inline_candidates']=[x for x in sorted(set(re.findall(r'["\']([^"\']{3,240})["\']',html))) if any(k in x.lower() for k in ['api','provider','center','province','city','special','search'])][:200]
+          else:
+            result['ok']=False
+          result['checked_at_utc']=datetime.datetime.now(datetime.timezone.utc).isoformat()
+          open('DRLINQ_SAMAN_DARMANET_DISCOVERY.json','w',encoding='utf-8').write(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
+          PY
+      - name: Commit result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DRLINQ_SAMAN_DARMANET_DISCOVERY.json
+          git commit -m "Record Saman Darmanet provider discovery" || exit 0
+          git push
