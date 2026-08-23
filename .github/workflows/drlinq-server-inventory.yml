@@ -1,0 +1,83 @@
+name: DrLinq Server Inventory
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/drlinq-server-inventory.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install sshpass
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass
+
+      - name: Read-only VPS inventory
+        id: probe
+        continue-on-error: true
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+        run: |
+          : "${VPS_PORT:=22}"
+          mkdir -p ~/.ssh
+          ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          sshpass -e ssh \
+            -o ConnectTimeout=20 \
+            -o BatchMode=no \
+            -o PasswordAuthentication=yes \
+            -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'bash -s' > /tmp/inventory.txt 2>/tmp/inventory.err <<'REMOTE'
+          set +e
+          echo "HOSTNAME=$(hostname)"
+          echo "OS=$(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d= -f2- | tr -d '\"')"
+          echo "KERNEL=$(uname -r)"
+          echo "UPTIME=$(uptime -p 2>/dev/null || true)"
+          echo "OPT_DRLINQ=$([ -d /opt/drlinq ] && echo yes || echo no)"
+          echo "OPT_N8N=$([ -d /opt/n8n ] && echo yes || echo no)"
+          echo "DOCKER=$((docker --version 2>/dev/null || true) | head -n1)"
+          echo "COMPOSE=$((docker compose version 2>/dev/null || true) | head -n1)"
+          echo "--- containers ---"
+          docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}' 2>/dev/null | head -n 30 || true
+          echo "--- /opt/drlinq files ---"
+          if [ -d /opt/drlinq ]; then
+            find /opt/drlinq -maxdepth 2 -type f -printf '%P\n' 2>/dev/null | sort | head -n 80
+          fi
+          REMOTE
+
+      - name: Write sanitized status
+        env:
+          PROBE_OUTCOME: ${{ steps.probe.outcome }}
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, os, datetime
+          def read(path):
+              p = pathlib.Path(path)
+              return p.read_text(errors='ignore').strip() if p.exists() else ''
+          data = {
+              'connected': os.environ.get('PROBE_OUTCOME') == 'success',
+              'inventory': read('/tmp/inventory.txt')[:12000],
+              'error': read('/tmp/inventory.err')[-1000:],
+              'checked_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+          }
+          pathlib.Path('DRLINQ_SERVER_STATUS.json').write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n')
+          PY
+
+      - name: Commit status
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DRLINQ_SERVER_STATUS.json
+          git commit -m "Record DrLinq VPS inventory" || exit 0
+          git push
