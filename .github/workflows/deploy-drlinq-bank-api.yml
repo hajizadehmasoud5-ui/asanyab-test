@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'bank_api/app.py'
+      - 'bank_api/app_geo.py'
+      - 'bank_api/normalize_geography.py'
       - 'bank_api/schema.sql'
       - 'bank_api/requirements.txt'
       - 'bank_api/Containerfile'
@@ -28,7 +30,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass
-      - name: Deploy current bank application only
+      - name: Deploy current bank application and normalize geography
         id: deploy
         continue-on-error: true
         env:
@@ -53,11 +55,23 @@ jobs:
             sleep 2
           done
           test "$ok" = "1"
+
+          echo 'GEOGRAPHY_NORMALIZATION:'
+          docker exec drlinq-bank-api python /app/normalize_geography.py
+          echo
+
           echo 'HEALTH:'
           curl -fsS https://n8n.drlinq.ir/bank/health
           echo
-          echo 'STATS:'
-          curl -fsS https://n8n.drlinq.ir/bank/stats
+          echo 'TEHRAN_CITIES_SAMPLE:'
+          curl -fsS 'https://n8n.drlinq.ir/bank/filters?province=تهران' | head -c 1500
+          echo
+          echo 'ALBORZ_DENTISTRY_TEHRAN_VIEW_STATUS:'
+          curl -fsS -G 'https://n8n.drlinq.ir/bank/view' \
+            --data-urlencode 'service=دندانپزشکی' \
+            --data-urlencode 'insurer=بیمه البرز' \
+            --data-urlencode 'province=تهران' \
+            --data-urlencode 'city=تهران' | grep -o 'داده این ترکیب در بانک هنوز کامل نشده\|گزینه مطابق انتخابت پیدا شد' | head -n1 || true
           echo
           REMOTE
       - name: Write deployment status
@@ -69,7 +83,7 @@ jobs:
           def r(p):
             x=pathlib.Path(p); return x.read_text(errors='ignore').strip() if x.exists() else ''
           pathlib.Path('DRLINQ_BANK_DEPLOY_STATUS.json').write_text(json.dumps({
-            'ok':os.environ.get('OUTCOME')=='success','report':r('/tmp/deploy.txt')[-12000:],'error':r('/tmp/deploy.err')[-3000:],
+            'ok':os.environ.get('OUTCOME')=='success','report':r('/tmp/deploy.txt')[-16000:],'error':r('/tmp/deploy.err')[-4000:],
             'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()
           },ensure_ascii=False,indent=2)+'\n')
           PY
