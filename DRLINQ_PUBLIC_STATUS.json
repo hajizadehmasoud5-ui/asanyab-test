@@ -1,0 +1,6 @@
+{
+  "connected": true,
+  "report": "--- caddy routes ---\nn8n.drlinq.ir {\n  reverse_proxy n8n:5678\ndrlinq.ir {\n  respond @enamad \"\" 200\n  respond \"DrLinq\" 200\n--- local caddy ---\nHTTP=308\n\n--- public https ---\nHTTP=200\nURL=https://drlinq.ir/\n<!doctype html> <html lang=\"fa\" dir=\"rtl\"> <head> <meta charset=\"utf-8\"> <meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\"> <title>دکترلینک | انتخاب درمان بر اساس شرایط تو</title> <meta name=\"description\" content=\"نوع پزشک، منطقه، بودجه، زمان نوبت و بیمه‌ات را مشخص کن تا گزینه‌های متناسب با شرایطت را پیدا کنی.\"> <link rel=\"canonical\" href=\"https://drlinq.ir/\"> <meta name=\"robots\" content=\"index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1\"> <meta name=\"theme-color\" content=\"#12213a\"> <style> :root{--navy:#12213a;--navy2:#1b3\n--- enamad path ---\nHTTP=200\n20460348",
+  "error": "",
+  "checked_at_utc": "2026-08-23T18:34:22.813228+00:00"
+}
