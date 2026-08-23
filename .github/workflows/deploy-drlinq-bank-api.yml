@@ -79,8 +79,9 @@ jobs:
           p = Path('/opt/drlinq/Caddyfile')
           text = p.read_text()
           if 'handle_path /bank/*' not in text:
-              pattern = r'n8n\.drlinq\.ir\s*\{\s*reverse_proxy\s+n8n:5678\s*\}'
+              pattern = r'n8n\.drlinq\.ir\s*\{.*?reverse_proxy\s+n8n:5678\s*\}'
               replacement = '''n8n.drlinq.ir {
+            encode zstd gzip
             handle_path /bank/* {
               reverse_proxy bank-api:8000
             }
@@ -90,7 +91,7 @@ jobs:
           }'''
               new_text, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
               if count != 1:
-                  raise SystemExit('Could not locate n8n.drlinq.ir block safely')
+                  raise SystemExit('Could not patch n8n.drlinq.ir block safely')
               p.write_text(new_text)
           PY
 
