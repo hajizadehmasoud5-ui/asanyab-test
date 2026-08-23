@@ -59,14 +59,22 @@ def install_request_guard(app) -> None:
     start_per_hour = int(os.environ.get('SINANEO_STARTS_PER_HOUR', '40'))
     messages_per_minute = int(os.environ.get('SINANEO_MESSAGES_PER_MINUTE', '90'))
     global_per_minute = int(os.environ.get('SINANEO_GLOBAL_PER_MINUTE', '300'))
+    origin_global_per_minute = int(os.environ.get('SINANEO_ORIGIN_GLOBAL_PER_MINUTE', '5000'))
+    origin_starts_per_minute = int(os.environ.get('SINANEO_ORIGIN_STARTS_PER_MINUTE', '300'))
     max_chat_body = int(os.environ.get('SINANEO_MAX_CHAT_BODY_BYTES', '32768'))
+
+    def socket_ip() -> str:
+        return (request.remote_addr or 'unknown')[:80]
 
     def client_ip() -> str:
         if trust_cloudflare:
             cf_ip = (request.headers.get('CF-Connecting-IP') or '').strip()
             if cf_ip:
                 return cf_ip[:80]
-        return (request.remote_addr or 'unknown')[:80]
+        forwarded = (request.headers.get('X-Forwarded-For') or '').split(',')[0].strip()
+        if forwarded:
+            return forwarded[:80]
+        return socket_ip()
 
     def limited(key: str, limit: int, window: int):
         ok, retry_after = limiter.allow(key, max(1, limit), max(1, window))
@@ -112,7 +120,11 @@ def install_request_guard(app) -> None:
             return None
 
         ip = client_ip()
+        origin_ip = socket_ip()
 
+        blocked = limited(f'origin-global:{origin_ip}', origin_global_per_minute, 60)
+        if blocked:
+            return blocked
         blocked = limited(f'global:{ip}', global_per_minute, 60)
         if blocked:
             return blocked
@@ -128,6 +140,9 @@ def install_request_guard(app) -> None:
         if path == '/alanoffer/api/chat/start':
             if request.content_length and request.content_length > max_chat_body:
                 return jsonify(error='payload_too_large'), 413
+            blocked = limited(f'origin-start:{origin_ip}', origin_starts_per_minute, 60)
+            if blocked:
+                return blocked
             blocked = limited(f'start-minute:{ip}', start_per_minute, 60)
             if blocked:
                 return blocked
