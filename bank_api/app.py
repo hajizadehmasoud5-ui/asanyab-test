@@ -60,6 +60,7 @@ def stats():
               (SELECT count(*) FROM bank_locations) AS locations,
               (SELECT count(*) FROM bank_contracts WHERE status='active') AS contracts,
               (SELECT count(*) FROM bank_insurers WHERE active) AS insurers,
+              (SELECT count(DISTINCT insurer_id) FROM bank_contracts WHERE status='active') AS insurers_with_data,
               (SELECT count(*) FROM bank_sources WHERE active) AS sources,
               (SELECT count(*) FROM bank_services) AS services
             """
@@ -198,7 +199,7 @@ def view(
 @media(max-width:900px){{.stats{{grid-template-columns:repeat(3,1fr)}}.fields{{grid-template-columns:1fr 1fr}}}}@media(max-width:520px){{.stats{{grid-template-columns:repeat(2,1fr)}}.fields{{grid-template-columns:1fr}}.top{{display:block}}.home{{display:inline-block;margin-top:8px}}}}
 </style></head><body><main class='wrap'>
 <div class='top'><div><h1>بانک سراسری مراکز دکترلینک</h1><div class='sub'>جست‌وجو بر اساس بیمه، خدمت/تخصص، استان، شهر و منطقه. بانک به‌صورت زنده و منبع‌محور در حال تکمیل است.</div></div><a class='home' href='https://drlinq.ir/'>بازگشت به دکترلینک</a></div>
-<div class='stats'><div class='stat'><b>{summary.get('providers',0)}</b><span>مرکز</span></div><div class='stat'><b>{summary.get('locations',0)}</b><span>آدرس</span></div><div class='stat'><b>{summary.get('contracts',0)}</b><span>رابطه بیمه‌ای</span></div><div class='stat'><b>{summary.get('insurers',0)}</b><span>بیمه ثبت‌شده</span></div><div class='stat'><b>{summary.get('services',0)}</b><span>خدمت/تخصص</span></div><div class='stat'><b>{summary.get('sources',0)}</b><span>منبع فعال</span></div></div>
+<div class='stats'><div class='stat'><b>{summary.get('providers',0)}</b><span>مرکز</span></div><div class='stat'><b>{summary.get('locations',0)}</b><span>آدرس</span></div><div class='stat'><b>{summary.get('contracts',0)}</b><span>رابطه بیمه‌ای</span></div><div class='stat'><b>{summary.get('insurers_with_data',0)} / {summary.get('insurers',0)}</b><span>بیمه دارای داده / فهرست</span></div><div class='stat'><b>{summary.get('services',0)}</b><span>خدمت/تخصص</span></div><div class='stat'><b>{summary.get('sources',0)}</b><span>منبع فعال</span></div></div>
 <form class='search' method='get'><div class='fields'>
 <input name='q' value='{escape(q,quote=True)}' placeholder='نام مرکز، آدرس یا تلفن'>
 <select name='insurer'>{option_html(fs['insurers'], insurer, 'همه بیمه‌ها')}</select>
