@@ -10,7 +10,7 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="DrLinq Provider Bank", version="0.5.0")
+app = FastAPI(title="DrLinq Provider Bank", version="0.6.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://drlinq.ir", "https://www.drlinq.ir"],
@@ -55,34 +55,25 @@ LEFT JOIN bank_services s ON s.id=ps.service_id
 LEFT JOIN bank_service_aliases sa ON sa.normalized_alias=s.normalized_name
 LEFT JOIN bank_services canonical ON canonical.id=sa.service_id
 """
-SERVICE_NAME_EXPR = "COALESCE(canonical.name, s.name)"
 SERVICE_NORM_EXPR = "COALESCE(canonical.normalized_name, s.normalized_name)"
 
 
 @app.get("/health")
 def health():
     with db() as conn:
-        value = conn.execute("SELECT 1 AS ok").fetchone()
-    return {"ok": bool(value and value["ok"] == 1), "service": "drlinq-bank-api"}
+        row = conn.execute("SELECT 1 AS ok").fetchone()
+    return {"ok": bool(row and row["ok"] == 1), "service": "drlinq-bank-api"}
 
 
 @app.get("/stats")
 def stats():
     with db() as conn:
         counts = conn.execute(
-            f"""
+            """
             SELECT
               (SELECT count(*) FROM bank_providers WHERE active) AS providers,
-              (SELECT count(*) FROM bank_locations) AS locations,
               (SELECT count(*) FROM bank_contracts WHERE status='active') AS contracts,
-              (SELECT count(*) FROM bank_insurers WHERE active) AS insurers,
-              (SELECT count(DISTINCT insurer_id) FROM bank_contracts WHERE status='active') AS insurers_with_data,
-              (SELECT count(*) FROM bank_sources WHERE active) AS sources,
-              (SELECT count(DISTINCT COALESCE(canonical2.id,s2.id))
-                 FROM bank_provider_services ps2
-                 JOIN bank_services s2 ON s2.id=ps2.service_id
-                 LEFT JOIN bank_service_aliases sa2 ON sa2.normalized_alias=s2.normalized_name
-                 LEFT JOIN bank_services canonical2 ON canonical2.id=sa2.service_id) AS services
+              (SELECT count(*) FROM bank_insurers WHERE active) AS insurers
             """
         ).fetchone()
     return {"counts": counts}
@@ -177,7 +168,6 @@ def providers(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
-    # Kept for backend/future use. The patient-facing page does not expose names, addresses or phones.
     clauses = ["c.status='active'", "p.active=TRUE"]
     params = []
     if insurer:
@@ -240,65 +230,165 @@ def view(
         insurer=insurer, service=service, province=province, city=city, district=district
     ) if has_search else None
 
-    if has_search:
-        chosen = " · ".join([x for x in [service, insurer, province, city, district] if x])
-        if count:
-            result_html = (
-                f"<div class='result ok'><b>{count}</b><span>گزینه مطابق انتخاب فعلی در بانک پیدا شد.</span>"
-                f"<small>{escape(chosen)}</small></div>"
-            )
-        else:
-            result_html = (
-                "<div class='result empty'><b>۰</b><span>در بانک فعلی برای این ترکیب هنوز گزینه ثبت نشده است.</span>"
-                f"<small>{escape(chosen)}</small></div>"
-            )
+    chosen = " · ".join([x for x in [service, insurer, province, city, district] if x])
+    if has_search and count:
+        result_html = (
+            f"<div class='result ok'><strong>{count}</strong>"
+            f"<div><b>گزینه مطابق انتخابت پیدا شد</b><small>{escape(chosen)}</small></div></div>"
+        )
+    elif has_search:
+        result_html = (
+            "<div class='result empty'><strong>۰</strong>"
+            f"<div><b>برای این ترکیب هنوز گزینه‌ای ثبت نشده</b><small>{escape(chosen)}</small></div></div>"
+        )
     else:
         result_html = ""
 
     html = f"""<!doctype html>
-<html lang='fa' dir='rtl'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
-<title>جست‌وجوی درمان دکترلینک</title><style>
-*{{box-sizing:border-box}}body{{margin:0;background:#f5f7fb;color:#172033;font-family:Tahoma,Arial,sans-serif}}.wrap{{max-width:980px;margin:auto;padding:32px 16px 70px}}
-.top{{text-align:center;margin-bottom:26px}}h1{{color:#12213a;margin:0 0 8px;font-size:28px}}.sub{{color:#667085;font-size:13px;line-height:2}}
-.search{{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:20px;box-shadow:0 8px 28px rgba(16,24,40,.05)}}
-.fields{{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}}label{{display:block;font-size:11px;color:#667085;margin:0 2px 6px}}select,button{{width:100%;min-height:48px;border:1px solid #d6dbe4;border-radius:12px;background:#fff;padding:9px 10px;font:inherit;font-size:12px}}button{{background:#1769e0;color:white;border:0;font-weight:800;cursor:pointer;margin-top:12px}}select:disabled{{background:#f2f4f7;color:#98a2b3}}
-.flow{{display:flex;justify-content:center;gap:7px;flex-wrap:wrap;margin:0 0 18px;color:#667085;font-size:11px}}.flow span{{background:#fff;border:1px solid #e5e7eb;border-radius:999px;padding:7px 10px}}
-.result{{margin-top:16px;border-radius:14px;padding:18px;text-align:center;display:grid;gap:6px}}.result b{{font-size:32px}}.result span{{font-size:13px}}.result small{{color:#667085;line-height:1.8}}.result.ok{{background:#ecfdf3;border:1px solid #abefc6;color:#067647}}.result.empty{{background:#fff8e6;border:1px solid #f5d58a;color:#9a6700}}
-.note{{color:#667085;text-align:center;font-size:11px;line-height:1.9;margin-top:14px}}
-@media(max-width:820px){{.fields{{grid-template-columns:1fr 1fr}}}}@media(max-width:520px){{.fields{{grid-template-columns:1fr}}.wrap{{padding:22px 12px 50px}}h1{{font-size:23px}}}}
-</style></head><body><main class='wrap'>
-<div class='top'><h1>چه خدمتی می‌خواهی؟</h1><div class='sub'>خدمت و بیمه را انتخاب کن، بعد موقعیتت را از استان تا محله مشخص کن.</div></div>
-<div class='flow'><span>۱. خدمت</span><span>۲. بیمه</span><span>۳. استان</span><span>۴. شهر</span><span>۵. محله/منطقه</span></div>
-<form class='search' method='get'>
-<div class='fields'>
-<div><label>خدمت / تخصص</label><select name='service' id='service'>{option_html(fs['services'], service, 'انتخاب خدمت')}</select></div>
-<div><label>بیمه</label><select name='insurer' id='insurer'>{option_html(fs['insurers'], insurer, 'انتخاب بیمه')}</select></div>
-<div><label>استان</label><select name='province' id='province'>{option_html(fs['provinces'], province, 'انتخاب استان')}</select></div>
-<div><label>شهر</label><select name='city' id='city' {'disabled' if not province else ''}>{option_html(fs['cities'], city, 'انتخاب شهر')}</select></div>
-<div><label>محله / منطقه</label><select name='district' id='district' {'disabled' if not city else ''}>{option_html(fs['districts'], district, 'انتخاب محله')}</select></div>
+<html lang='fa' dir='rtl'>
+<head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>جست‌وجوی درمان دکترلینک</title>
+<style>
+*{{box-sizing:border-box}}
+body{{margin:0;font-family:Tahoma,Arial,sans-serif;color:#20314d;background:#eef3f8}}
+.hero{{min-height:100vh;background:linear-gradient(180deg,#e8f2fb 0%,#f5f8fb 58%,#eef3f8 100%);padding:34px 18px 70px}}
+.shell{{max-width:1180px;margin:0 auto}}
+.brand{{display:flex;align-items:center;justify-content:space-between;margin-bottom:54px}}
+.logo{{font-size:28px;font-weight:900;color:#1464a8;text-decoration:none}}
+.brand-note{{font-size:12px;color:#667085}}
+.intro{{text-align:center;margin:0 auto 28px;max-width:760px}}
+.intro h1{{font-size:34px;margin:0 0 10px;color:#17365d}}
+.intro p{{margin:0;color:#667085;font-size:14px;line-height:2}}
+.search-card{{background:#fff;border-radius:16px;box-shadow:0 14px 38px rgba(31,61,90,.16);overflow:hidden;border:1px solid #dfe8f1}}
+.search-head{{display:flex;align-items:center;gap:8px;padding:14px 18px;border-bottom:3px solid #1b78c8;color:#17365d;font-size:13px;font-weight:800}}
+.search-head .dot{{width:10px;height:10px;border-radius:50%;background:#1b78c8}}
+.search-row{{display:grid;grid-template-columns:1.15fr 1.05fr 1fr 1fr 1fr 150px;align-items:stretch}}
+.field{{position:relative;border-left:1px solid #e4e8ee;padding:11px 15px 10px;min-width:0}}
+.field:last-of-type{{border-left:1px solid #e4e8ee}}
+.field label{{display:block;font-size:10px;color:#7a8797;margin-bottom:5px;white-space:nowrap}}
+.field .value{{display:flex;align-items:center;gap:7px}}
+.icon{{font-size:18px;color:#1b78c8;line-height:1}}
+select{{width:100%;border:0;outline:0;background:transparent;color:#20314d;font:inherit;font-size:13px;min-width:0;padding:0 0 0 16px;cursor:pointer}}
+select:disabled{{color:#98a2b3;cursor:not-allowed}}
+.search-btn{{border:0;background:#e94545;color:#fff;font:inherit;font-size:15px;font-weight:900;cursor:pointer;min-height:76px;padding:0 20px}}
+.search-btn:hover{{background:#d83b3b}}
+.result{{margin:18px auto 0;max-width:760px;border-radius:14px;padding:15px 18px;display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #dfe8f1;box-shadow:0 7px 22px rgba(31,61,90,.07)}}
+.result strong{{font-size:30px;min-width:48px;text-align:center}}
+.result div{{display:grid;gap:4px}}
+.result b{{font-size:13px}}
+.result small{{font-size:11px;color:#667085;line-height:1.7}}
+.result.ok strong,.result.ok b{{color:#087443}}
+.result.empty strong,.result.empty b{{color:#9a6700}}
+.helper{{text-align:center;color:#7a8797;font-size:11px;margin-top:15px;line-height:1.9}}
+@media(max-width:980px){{
+  .search-row{{grid-template-columns:1fr 1fr 1fr}}
+  .search-btn{{grid-column:1/-1;min-height:54px}}
+  .field{{border-bottom:1px solid #e4e8ee}}
+}}
+@media(max-width:620px){{
+  .hero{{padding:22px 12px 50px}}
+  .brand{{margin-bottom:34px}}
+  .brand-note{{display:none}}
+  .intro h1{{font-size:25px}}
+  .intro p{{font-size:12px}}
+  .search-row{{grid-template-columns:1fr}}
+  .field{{border-left:0;border-bottom:1px solid #e4e8ee;padding:13px 15px}}
+  .search-btn{{grid-column:auto}}
+}}
+</style>
+</head>
+<body>
+<section class='hero'>
+<div class='shell'>
+  <div class='brand'><a class='logo' href='https://drlinq.ir/'>دکترلینک</a><div class='brand-note'>انتخاب درمان بر اساس شرایط تو</div></div>
+  <div class='intro'>
+    <h1>خدمت مناسب را نزدیک خودت پیدا کن</h1>
+    <p>خدمت و بیمه را انتخاب کن، بعد استان، شهر و محله را مشخص کن.</p>
+  </div>
+
+  <form class='search-card' method='get'>
+    <div class='search-head'><span class='dot'></span>جست‌وجوی درمان</div>
+    <div class='search-row'>
+      <div class='field'>
+        <label>خدمت / تخصص</label>
+        <div class='value'><span class='icon'>✚</span><select name='service' id='service'>{option_html(fs['services'], service, 'انتخاب خدمت')}</select></div>
+      </div>
+      <div class='field'>
+        <label>بیمه</label>
+        <div class='value'><span class='icon'>▣</span><select name='insurer' id='insurer'>{option_html(fs['insurers'], insurer, 'انتخاب بیمه')}</select></div>
+      </div>
+      <div class='field'>
+        <label>استان</label>
+        <div class='value'><span class='icon'>⌖</span><select name='province' id='province'>{option_html(fs['provinces'], province, 'انتخاب استان')}</select></div>
+      </div>
+      <div class='field'>
+        <label>شهر</label>
+        <div class='value'><span class='icon'>⌖</span><select name='city' id='city' {'disabled' if not province else ''}>{option_html(fs['cities'], city, 'انتخاب شهر')}</select></div>
+      </div>
+      <div class='field'>
+        <label>محله / منطقه</label>
+        <div class='value'><span class='icon'>⌖</span><select name='district' id='district' {'disabled' if not city else ''}>{option_html(fs['districts'], district, 'انتخاب محله')}</select></div>
+      </div>
+      <button class='search-btn' type='submit'>🔎 جستجو</button>
+    </div>
+  </form>
+
+  {result_html}
+  <div class='helper'>فعلاً فقط تعداد گزینه‌های منطبق نمایش داده می‌شود؛ نام مرکز، آدرس و تلفن در مرحله بعدی محصول اضافه می‌شود.</div>
 </div>
-<button type='submit'>بررسی گزینه‌های موجود</button>
-{result_html}
-</form>
-<div class='note'>در این مرحله نام مرکز، آدرس و تلفن به بیمار نمایش داده نمی‌شود. جزئیات مرکز در مرحله بعدی محصول اضافه خواهد شد.</div>
-</main>
+</section>
 <script>
 const province=document.getElementById('province');
 const city=document.getElementById('city');
 const district=document.getElementById('district');
-function refill(el,values,placeholder){{el.innerHTML='';const f=document.createElement('option');f.value='';f.textContent=placeholder;el.appendChild(f);for(const v of values){{const o=document.createElement('option');o.value=v;o.textContent=v;el.appendChild(o);}}}}
-async function loadGeo(){{
-  const qs=new URLSearchParams(); if(province.value)qs.set('province',province.value); if(city.value)qs.set('city',city.value);
-  try{{const r=await fetch('filters?'+qs.toString());if(!r.ok)return;const d=await r.json();
-    if(province.value){{refill(city,d.cities,'انتخاب شهر');city.disabled=false;}}else{{refill(city,[],'انتخاب شهر');city.disabled=true;}}
-    refill(district,[],'انتخاب محله');district.disabled=true;
+
+function refill(el,values,placeholder,selected=''){{
+  el.innerHTML='';
+  const first=document.createElement('option');
+  first.value=''; first.textContent=placeholder; el.appendChild(first);
+  for(const v of values){{
+    const o=document.createElement('option');
+    o.value=v; o.textContent=v; if(v===selected)o.selected=true;
+    el.appendChild(o);
+  }}
+}}
+
+async function fetchGeo(p='',c=''){{
+  const qs=new URLSearchParams();
+  if(p)qs.set('province',p);
+  if(c)qs.set('city',c);
+  const r=await fetch('filters?'+qs.toString(),{{headers:{{Accept:'application/json'}}}});
+  if(!r.ok)throw new Error('filters');
+  return r.json();
+}}
+
+province.addEventListener('change',async()=>{{
+  const p=province.value;
+  refill(city,[],'انتخاب شهر');
+  refill(district,[],'انتخاب محله');
+  city.disabled=true; district.disabled=true;
+  if(!p)return;
+  try{{
+    const d=await fetchGeo(p,'');
+    refill(city,d.cities,'انتخاب شهر');
+    city.disabled=false;
   }}catch(e){{}}
-}}
-async function loadDistricts(){{
-  if(!province.value||!city.value){{refill(district,[],'انتخاب محله');district.disabled=true;return;}}
-  const qs=new URLSearchParams({{province:province.value,city:city.value}});
-  try{{const r=await fetch('filters?'+qs.toString());if(!r.ok)return;const d=await r.json();refill(district,d.districts,'انتخاب محله');district.disabled=d.districts.length===0;}}catch(e){{}}
-}}
-province.addEventListener('change',loadGeo);city.addEventListener('change',loadDistricts);
-</script></body></html>"""
+}});
+
+city.addEventListener('change',async()=>{{
+  const p=province.value, c=city.value;
+  refill(district,[],'انتخاب محله');
+  district.disabled=true;
+  if(!p||!c)return;
+  try{{
+    const d=await fetchGeo(p,c);
+    refill(district,d.districts,'انتخاب محله');
+    district.disabled=(d.districts||[]).length===0;
+  }}catch(e){{}}
+}});
+</script>
+</body>
+</html>"""
     return HTMLResponse(html)
