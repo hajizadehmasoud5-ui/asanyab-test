@@ -1,0 +1,4 @@
+{
+  "caddyfile": "n8n.drlinq.ir {\n  encode zstd gzip\n  reverse_proxy n8n:5678\n}\n\ndrlinq.ir {\n  @enamad path /20460348.txt\n  respond @enamad \"\" 200\n  respond \"DrLinq\" 200\n}\n",
+  "checked_at_utc": "2026-08-23T18:41:36.539755+00:00"
+}
