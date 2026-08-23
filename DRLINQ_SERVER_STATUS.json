@@ -1,0 +1,6 @@
+{
+  "connected": true,
+  "inventory": "HOSTNAME=n8n-drlinq111\nOS=Ubuntu 24.04.4 LTS\nKERNEL=6.8.0-137-generic\nUPTIME=up 1 day, 4 hours, 30 minutes\nOPT_DRLINQ=yes\nOPT_N8N=no\nDOCKER=Docker version 29.1.3, build 29.1.3-0ubuntu3~24.04.2\nCOMPOSE=Docker Compose version 2.40.3+ds1-0ubuntu1~24.04.1\n--- containers ---\ndrlinq-caddy|caddy:2-alpine|Up 28 hours\ndrlinq-n8n|n8nio/n8n:2.35.7|Up 28 hours\ndrlinq-postgres|postgres:17-alpine|Up 28 hours (healthy)\n--- /opt/drlinq files ---\nCaddyfile\nCaddyfile.pre-enamad.20260822154001.bak\nCaddyfile.pre-enamad.20260822154100.bak\nCaddyfile.pre-enamad.20260822154748.bak\nCaddyfile.pre-enamad.20260822172811.bak\ndatabase/001_core_schema.sql\ndocker-compose.yml\n.env\nrestore/workflows.tgz",
+  "error": "",
+  "checked_at_utc": "2026-08-23T18:33:34.521281+00:00"
+}
