@@ -4,5 +4,6 @@ COPY requirements.txt /app/requirements.txt
 RUN python -m pip install --no-cache-dir -r /app/requirements.txt
 COPY app.py /app/app.py
 COPY schema.sql /app/schema.sql
+COPY seed_pilot.py /app/seed_pilot.py
 EXPOSE 8000
 CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
