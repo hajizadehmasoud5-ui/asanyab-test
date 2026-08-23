@@ -11,7 +11,7 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="DrLinq Provider Bank", version="0.7.0")
+app = FastAPI(title="DrLinq Provider Bank", version="0.8.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://drlinq.ir", "https://www.drlinq.ir"],
@@ -115,12 +115,10 @@ def service_group(name: str) -> str:
     if any(x in n for x in facility_terms):
         return "مراکز و خدمات درمانی"
 
-    # تخصص‌های قلب، داخلی، زنان، اطفال، پوست، جراحی، کلیه، گوارش و ...
-    # همگی در گروه پزشکی باقی می‌مانند.
     return "پزشکی"
 
 
-def grouped_service_options_html(values, selected_value: str) -> str:
+def build_service_groups(values):
     groups = defaultdict(list)
     seen = set()
     for raw in values:
@@ -133,18 +131,49 @@ def grouped_service_options_html(values, selected_value: str) -> str:
         seen.add(key)
         groups[service_group(value)].append(value)
 
-    parts = ["<option value=''>انتخاب خدمت</option>"]
+    ordered = {}
     for group_name in SERVICE_GROUP_ORDER:
         items = sorted(groups.get(group_name, []), key=norm)
-        if not items:
-            continue
-        parts.append(f"<optgroup label='{escape(group_name, quote=True)}'>")
+        if items:
+            ordered[group_name] = items
+    return ordered
+
+
+def service_picker_html(values, selected_value: str) -> str:
+    groups = build_service_groups(values)
+    selected_group = service_group(selected_value) if selected_value else next(iter(groups), "")
+    safe_selected = escape(selected_value or "", quote=True)
+    label = escape(selected_value or "انتخاب خدمت")
+
+    tabs = []
+    panes = []
+    for group_name, items in groups.items():
+        active = " active" if group_name == selected_group else ""
+        safe_group = escape(group_name, quote=True)
+        tabs.append(
+            f"<button type='button' class='service-category{active}' data-group='{safe_group}'>{escape(group_name)}</button>"
+        )
+        item_buttons = []
         for value in items:
-            safe = escape(value, quote=True)
+            safe_value = escape(value, quote=True)
             selected = " selected" if value == selected_value else ""
-            parts.append(f"<option value='{safe}'{selected}>{safe}</option>")
-        parts.append("</optgroup>")
-    return "".join(parts)
+            item_buttons.append(
+                f"<button type='button' class='service-option{selected}' data-service='{safe_value}'>{escape(value)}</button>"
+            )
+        hidden = "" if group_name == selected_group else " hidden"
+        panes.append(
+            f"<div class='service-pane{hidden}' data-pane='{safe_group}'>{''.join(item_buttons)}</div>"
+        )
+
+    return (
+        f"<input type='hidden' name='service' id='service' value='{safe_selected}'>"
+        f"<button type='button' class='service-trigger' id='serviceTrigger' aria-expanded='false'>"
+        f"<span id='serviceLabel'>{label}</span><span class='chev'>⌄</span></button>"
+        f"<div class='service-mega' id='serviceMega' hidden>"
+        f"<div class='service-categories'>{''.join(tabs)}</div>"
+        f"<div class='service-content'>{''.join(panes)}</div>"
+        f"</div>"
+    )
 
 
 @app.get("/health")
@@ -350,17 +379,28 @@ body{{margin:0;font-family:Tahoma,Arial,sans-serif;color:#20314d;background:#eef
 .intro{{text-align:center;margin:0 auto 28px;max-width:760px}}
 .intro h1{{font-size:34px;margin:0 0 10px;color:#17365d}}
 .intro p{{margin:0;color:#667085;font-size:14px;line-height:2}}
-.search-card{{background:#fff;border-radius:16px;box-shadow:0 14px 38px rgba(31,61,90,.16);overflow:hidden;border:1px solid #dfe8f1}}
+.search-card{{background:#fff;border-radius:16px;box-shadow:0 14px 38px rgba(31,61,90,.16);border:1px solid #dfe8f1;overflow:visible}}
 .search-head{{display:flex;align-items:center;gap:8px;padding:14px 18px;border-bottom:3px solid #1b78c8;color:#17365d;font-size:13px;font-weight:800}}
 .search-head .dot{{width:10px;height:10px;border-radius:50%;background:#1b78c8}}
-.search-row{{display:grid;grid-template-columns:1.15fr 1.05fr 1fr 1fr 1fr 150px;align-items:stretch}}
+.search-row{{display:grid;grid-template-columns:1.35fr 1.05fr 1fr 1fr 1fr 150px;align-items:stretch}}
 .field{{position:relative;border-left:1px solid #e4e8ee;padding:11px 15px 10px;min-width:0}}
-.field:last-of-type{{border-left:1px solid #e4e8ee}}
 .field label{{display:block;font-size:10px;color:#7a8797;margin-bottom:5px;white-space:nowrap}}
-.field .value{{display:flex;align-items:center;gap:7px}}
+.field .value{{display:flex;align-items:center;gap:7px;min-height:28px}}
 .icon{{font-size:18px;color:#1b78c8;line-height:1}}
 select{{width:100%;border:0;outline:0;background:transparent;color:#20314d;font:inherit;font-size:13px;min-width:0;padding:0 0 0 16px;cursor:pointer}}
 select:disabled{{color:#98a2b3;cursor:not-allowed}}
+.service-trigger{{width:100%;border:0;background:transparent;padding:0;color:#20314d;font:inherit;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:right}}
+.service-trigger .chev{{color:#8b98a7;font-size:16px}}
+.service-mega{{position:absolute;z-index:50;top:calc(100% + 13px);right:0;width:min(930px,calc(100vw - 48px));background:#fff;border:1px solid #dfe8f1;border-radius:16px;box-shadow:0 22px 52px rgba(31,61,90,.22);padding:14px;display:grid;grid-template-columns:210px 1fr;gap:14px}}
+.service-mega[hidden]{{display:none}}
+.service-categories{{display:grid;align-content:start;gap:7px;border-left:1px solid #edf1f5;padding-left:12px}}
+.service-category{{border:0;background:#f6f8fb;color:#344054;border-radius:10px;padding:11px 12px;font:inherit;font-size:12px;font-weight:800;text-align:right;cursor:pointer}}
+.service-category.active{{background:#e9f3ff;color:#1464a8}}
+.service-content{{min-height:260px;max-height:420px;overflow:auto;padding:4px}}
+.service-pane{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}}
+.service-pane.hidden{{display:none}}
+.service-option{{border:1px solid #e5eaf0;background:#fff;color:#344054;border-radius:10px;padding:10px 11px;font:inherit;font-size:12px;line-height:1.6;text-align:right;cursor:pointer}}
+.service-option:hover,.service-option.selected{{border-color:#82b8e8;background:#f0f7ff;color:#135f9f}}
 .search-btn{{border:0;background:#e94545;color:#fff;font:inherit;font-size:15px;font-weight:900;cursor:pointer;min-height:76px;padding:0 20px}}
 .search-btn:hover{{background:#d83b3b}}
 .result{{margin:18px auto 0;max-width:760px;border-radius:14px;padding:15px 18px;display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #dfe8f1;box-shadow:0 7px 22px rgba(31,61,90,.07)}}
@@ -375,6 +415,9 @@ select:disabled{{color:#98a2b3;cursor:not-allowed}}
   .search-row{{grid-template-columns:1fr 1fr 1fr}}
   .search-btn{{grid-column:1/-1;min-height:54px}}
   .field{{border-bottom:1px solid #e4e8ee}}
+  .service-mega{{position:fixed;top:80px;right:18px;left:18px;width:auto;max-height:calc(100vh - 110px);grid-template-columns:180px 1fr}}
+  .service-content{{max-height:calc(100vh - 150px)}}
+  .service-pane{{grid-template-columns:repeat(2,minmax(0,1fr))}}
 }}
 @media(max-width:620px){{
   .hero{{padding:22px 12px 50px}}
@@ -385,6 +428,11 @@ select:disabled{{color:#98a2b3;cursor:not-allowed}}
   .search-row{{grid-template-columns:1fr}}
   .field{{border-left:0;border-bottom:1px solid #e4e8ee;padding:13px 15px}}
   .search-btn{{grid-column:auto}}
+  .service-mega{{top:62px;right:10px;left:10px;padding:10px;grid-template-columns:1fr;gap:10px}}
+  .service-categories{{display:flex;overflow:auto;border-left:0;border-bottom:1px solid #edf1f5;padding:0 0 9px;gap:7px}}
+  .service-category{{white-space:nowrap;text-align:center}}
+  .service-content{{max-height:calc(100vh - 190px)}}
+  .service-pane{{grid-template-columns:1fr}}
 }}
 </style>
 </head>
@@ -397,12 +445,12 @@ select:disabled{{color:#98a2b3;cursor:not-allowed}}
     <p>خدمت و بیمه را انتخاب کن، بعد استان، شهر و محله را مشخص کن.</p>
   </div>
 
-  <form class='search-card' method='get'>
+  <form class='search-card' method='get' id='searchForm'>
     <div class='search-head'><span class='dot'></span>جست‌وجوی درمان</div>
     <div class='search-row'>
-      <div class='field'>
+      <div class='field' id='serviceField'>
         <label>خدمت / تخصص</label>
-        <div class='value'><span class='icon'>✚</span><select name='service' id='service'>{grouped_service_options_html(fs['services'], service)}</select></div>
+        <div class='value'><span class='icon'>✚</span>{service_picker_html(fs['services'], service)}</div>
       </div>
       <div class='field'>
         <label>بیمه</label>
@@ -425,13 +473,18 @@ select:disabled{{color:#98a2b3;cursor:not-allowed}}
   </form>
 
   {result_html}
-  <div class='helper'>فعلاً فقط تعداد گزینه‌های منطبق نمایش داده می‌شود؛ نام مرکز، آدرس و تلفن در مرحله بعدی محصول اضافه می‌شود.</div>
+  <div class='helper'>اول سرشاخه خدمت را انتخاب کن؛ بعد تمام تخصص‌های همان شاخه در پنل عریض نمایش داده می‌شوند.</div>
 </div>
 </section>
 <script>
 const province=document.getElementById('province');
 const city=document.getElementById('city');
 const district=document.getElementById('district');
+const serviceInput=document.getElementById('service');
+const serviceTrigger=document.getElementById('serviceTrigger');
+const serviceLabel=document.getElementById('serviceLabel');
+const serviceMega=document.getElementById('serviceMega');
+const serviceField=document.getElementById('serviceField');
 
 function refill(el,values,placeholder,selected=''){{
   el.innerHTML='';
@@ -443,6 +496,41 @@ function refill(el,values,placeholder,selected=''){{
     el.appendChild(o);
   }}
 }}
+
+function openServices(){{
+  serviceMega.hidden=false;
+  serviceTrigger.setAttribute('aria-expanded','true');
+}}
+function closeServices(){{
+  serviceMega.hidden=true;
+  serviceTrigger.setAttribute('aria-expanded','false');
+}}
+serviceTrigger.addEventListener('click',(e)=>{{
+  e.stopPropagation();
+  if(serviceMega.hidden)openServices(); else closeServices();
+}});
+
+document.querySelectorAll('.service-category').forEach(btn=>{{
+  btn.addEventListener('click',()=>{{
+    const group=btn.dataset.group;
+    document.querySelectorAll('.service-category').forEach(x=>x.classList.toggle('active',x===btn));
+    document.querySelectorAll('.service-pane').forEach(p=>p.classList.toggle('hidden',p.dataset.pane!==group));
+  }});
+}});
+
+document.querySelectorAll('.service-option').forEach(btn=>{{
+  btn.addEventListener('click',()=>{{
+    serviceInput.value=btn.dataset.service;
+    serviceLabel.textContent=btn.dataset.service;
+    document.querySelectorAll('.service-option').forEach(x=>x.classList.toggle('selected',x===btn));
+    closeServices();
+  }});
+}});
+
+document.addEventListener('click',(e)=>{{
+  if(!serviceField.contains(e.target) && !serviceMega.contains(e.target))closeServices();
+}});
+document.addEventListener('keydown',(e)=>{{if(e.key==='Escape')closeServices();}});
 
 async function fetchGeo(p='',c=''){{
   const qs=new URLSearchParams();
