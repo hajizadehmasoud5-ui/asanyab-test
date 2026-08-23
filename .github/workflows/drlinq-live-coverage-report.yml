@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/drlinq-live-coverage-report.yml'
+      - 'bank_api/coverage_probe.py'
   workflow_dispatch:
 
 permissions:
