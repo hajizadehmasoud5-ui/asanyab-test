@@ -1,0 +1,69 @@
+name: Deploy Geo Search Now
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-geo-search-now.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
+      - name: Deploy and normalize geography
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+        run: |
+          : "${VPS_PORT:=22}"
+          mkdir -p ~/.ssh
+          ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          sshpass -e scp -P "$VPS_PORT" bank_api/*.py bank_api/schema.sql bank_api/requirements.txt bank_api/Containerfile "$VPS_USER@$VPS_HOST:/opt/drlinq/bank-api/"
+          sshpass -e ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'bash -s' > /tmp/geo.txt 2>/tmp/geo.err <<'REMOTE'
+          set -euo pipefail
+          cd /opt/drlinq
+          docker compose -f bank-compose.yml build
+          docker compose -f bank-compose.yml up -d
+          for i in $(seq 1 40); do
+            curl -fsS https://n8n.drlinq.ir/bank/health >/dev/null 2>&1 && break
+            sleep 2
+          done
+          echo 'NORMALIZE:'
+          docker exec drlinq-bank-api python /app/normalize_geography.py
+          echo
+          echo 'TEHRAN_FILTERS:'
+          curl -fsS -G 'https://n8n.drlinq.ir/bank/filters' --data-urlencode 'province=تهران' | head -c 3500
+          echo
+          echo 'ALBORZ_TEHRAN_RESULT:'
+          curl -fsS -G 'https://n8n.drlinq.ir/bank/view' \
+            --data-urlencode 'service=دندانپزشکی' \
+            --data-urlencode 'insurer=بیمه البرز' \
+            --data-urlencode 'province=تهران' \
+            --data-urlencode 'city=تهران' | grep -o 'داده این ترکیب در بانک هنوز کامل نشده\|گزینه مطابق انتخابت پیدا شد' | head -n1 || true
+          echo
+          REMOTE
+      - name: Save result
+        run: |
+          python3 - <<'PY'
+          import json,pathlib,datetime
+          def r(p):
+            x=pathlib.Path(p); return x.read_text(errors='ignore').strip() if x.exists() else ''
+          pathlib.Path('DRLINQ_GEO_SEARCH_STATUS.json').write_text(json.dumps({
+            'report':r('/tmp/geo.txt')[-20000:],
+            'error':r('/tmp/geo.err')[-4000:],
+            'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()
+          },ensure_ascii=False,indent=2)+'\n')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DRLINQ_GEO_SEARCH_STATUS.json
+          git commit -m "Record canonical geography search deployment" || exit 0
+          git push
