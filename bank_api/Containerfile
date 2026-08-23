@@ -8,5 +8,6 @@ COPY seed_pilot.py /app/seed_pilot.py
 COPY seed_catalog.py /app/seed_catalog.py
 COPY ingest_iionline_iran.py /app/ingest_iionline_iran.py
 COPY ingest_dana_public.py /app/ingest_dana_public.py
+COPY refresh_all.py /app/refresh_all.py
 EXPOSE 8000
 CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
