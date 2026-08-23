@@ -75,3 +75,5 @@ jobs:
           git add DRLINQ_TEHRAN_REGION_STATUS.json
           git commit -m "Record Tehran region backfill" || exit 0
           git push
+
+# retrigger region backfill
