@@ -17,6 +17,8 @@ jobs:
       - uses: actions/checkout@v4
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
       - name: Deploy and normalize geography
+        id: deploy
+        continue-on-error: true
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
@@ -51,14 +53,17 @@ jobs:
           echo
           REMOTE
       - name: Save result
+        env:
+          OUTCOME: ${{ steps.deploy.outcome }}
         run: |
           python3 - <<'PY'
-          import json,pathlib,datetime
+          import json,pathlib,datetime,os
           def r(p):
             x=pathlib.Path(p); return x.read_text(errors='ignore').strip() if x.exists() else ''
           pathlib.Path('DRLINQ_GEO_SEARCH_STATUS.json').write_text(json.dumps({
+            'ok':os.environ.get('OUTCOME')=='success',
             'report':r('/tmp/geo.txt')[-20000:],
-            'error':r('/tmp/geo.err')[-4000:],
+            'error':r('/tmp/geo.err')[-5000:],
             'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()
           },ensure_ascii=False,indent=2)+'\n')
           PY
