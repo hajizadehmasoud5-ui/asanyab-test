@@ -1,6 +1,6 @@
 name: Deploy Geo Search Now
 
-# deploy merged canonical + provider geography
+# final geography cleanup
 on:
   push:
     branches: [main]
@@ -41,6 +41,7 @@ jobs:
           done
           echo 'NORMALIZE:'
           docker exec drlinq-bank-api python /app/normalize_geography.py
+          docker exec drlinq-bank-api python /app/fix_geo_aliases.py
           echo
           echo 'TEHRAN_FILTERS:'
           curl -fsS -G 'https://n8n.drlinq.ir/bank/filters' --data-urlencode 'province=تهران' | head -c 3500
