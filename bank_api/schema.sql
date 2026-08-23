@@ -60,6 +60,13 @@ CREATE TABLE IF NOT EXISTS bank_services (
 );
 CREATE INDEX IF NOT EXISTS idx_bank_services_name ON bank_services(normalized_name);
 
+CREATE TABLE IF NOT EXISTS bank_service_aliases (
+  alias TEXT PRIMARY KEY,
+  normalized_alias TEXT NOT NULL,
+  service_id UUID NOT NULL REFERENCES bank_services(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_bank_service_aliases_norm ON bank_service_aliases(normalized_alias);
+
 CREATE TABLE IF NOT EXISTS bank_sources (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   source_type TEXT NOT NULL,
@@ -70,6 +77,21 @@ CREATE TABLE IF NOT EXISTS bank_sources (
   active BOOLEAN NOT NULL DEFAULT TRUE,
   last_checked_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS bank_source_registry (
+  slug TEXT PRIMARY KEY,
+  insurer_slug TEXT,
+  insurer_name TEXT NOT NULL,
+  source_name TEXT NOT NULL,
+  source_url TEXT NOT NULL UNIQUE,
+  source_type TEXT NOT NULL DEFAULT 'secondary',
+  adapter TEXT NOT NULL DEFAULT 'pending',
+  enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  last_discovered_at TIMESTAMPTZ,
+  last_success_at TIMESTAMPTZ,
+  last_error TEXT,
+  notes TEXT
 );
 
 CREATE TABLE IF NOT EXISTS bank_provider_services (
