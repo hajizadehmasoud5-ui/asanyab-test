@@ -1,11 +1,13 @@
 import os
 from contextlib import contextmanager
+from html import escape
 from pathlib import Path
 
 import psycopg
 from psycopg.rows import dict_row
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 
 app = FastAPI(title="DrLinq Provider Bank", version="0.1.0")
 app.add_middleware(
@@ -136,3 +138,45 @@ def providers(
     with db() as conn:
         rows = conn.execute(sql, params).fetchall()
     return {"items": rows, "limit": limit, "offset": offset}
+
+
+@app.get("/view", response_class=HTMLResponse)
+def view():
+    summary = stats()["counts"]
+    items = providers(
+        insurer="بیمه دی",
+        service="دندانپزشکی",
+        province="خوزستان",
+        city="اهواز",
+        limit=100,
+        offset=0,
+    )["items"]
+    cards = []
+    for item in items:
+        phone = escape(item.get("phone") or "—")
+        address = escape(item.get("address") or "—")
+        name = escape(item.get("name") or "—")
+        insurer = escape(item.get("insurer") or "—")
+        source = escape(item.get("source_url") or "#", quote=True)
+        label = "منبع رسمی" if item.get("confidence") == "official" else "منبع ثانویه؛ قبل از مراجعه استعلام شود"
+        cls = "official" if item.get("confidence") == "official" else "secondary"
+        cards.append(
+            f"<article class='card'><h2>{name}</h2>"
+            f"<p><b>بیمه:</b> {insurer}</p><p><b>تلفن:</b> {phone}</p>"
+            f"<p><b>آدرس:</b> {address}</p>"
+            f"<div class='source {cls}'>{label} · <a href='{source}' target='_blank' rel='noopener'>مشاهده منبع</a></div></article>"
+        )
+    html = f"""<!doctype html>
+<html lang='fa' dir='rtl'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>بانک مراکز دکترلینک</title><style>
+body{{margin:0;background:#f5f7fb;color:#172033;font-family:Tahoma,Arial,sans-serif}}.wrap{{max-width:980px;margin:auto;padding:24px 14px 60px}}
+h1{{color:#12213a;margin-bottom:6px}}.sub{{color:#667085;font-size:13px;line-height:1.9}}.stats{{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:18px 0}}
+.stat,.card{{background:white;border:1px solid #e5e7eb;border-radius:14px;padding:14px}}.stat b{{font-size:23px;color:#12213a;display:block}}.stat span{{font-size:11px;color:#667085}}
+.grid{{display:grid;gap:10px}}h2{{font-size:17px;margin:0 0 10px;color:#12213a}}p{{margin:5px 0;font-size:13px;line-height:1.9}}.source{{border-top:1px dashed #e5e7eb;margin-top:10px;padding-top:9px;font-size:12px}}
+.secondary{{color:#9a6700}}.official{{color:#087443}}a{{color:#2563eb;text-decoration:none}}.notice{{background:#fff8e6;border:1px solid #f5d58a;border-radius:12px;padding:11px;font-size:12px;line-height:1.8;margin-bottom:14px}}
+@media(max-width:700px){{.stats{{grid-template-columns:repeat(2,1fr)}}}}
+</style></head><body><main class='wrap'><h1>بانک مراکز دکترلینک</h1><div class='sub'>نمای زنده پایلوت: دندانپزشکی اهواز + بیمه دی</div>
+<div class='stats'><div class='stat'><b>{summary['providers']}</b><span>مرکز</span></div><div class='stat'><b>{summary['locations']}</b><span>آدرس</span></div><div class='stat'><b>{summary['contracts']}</b><span>رابطه بیمه‌ای</span></div><div class='stat'><b>{summary['insurers']}</b><span>بیمه</span></div><div class='stat'><b>{summary['sources']}</b><span>منبع</span></div></div>
+<div class='notice'>این نسخه آزمایشی است. رکوردهای فعلی از منبع ثانویه وارد شده‌اند و قبل از مراجعه باید قرارداد فعال با بیمه از مرکز یا بیمه استعلام شود.</div>
+<div class='grid'>{''.join(cards)}</div></main></body></html>"""
+    return HTMLResponse(html)
