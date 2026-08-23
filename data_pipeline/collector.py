@@ -94,23 +94,6 @@ class DrLinqStore:
             (source_id, r.source_record_key or None, payload, h),
         )
 
-    def upsert_provider(self, r: RawRecord) -> int:
-        norm_name = normalize_text(r.provider_name)
-        phone = normalize_phone(r.phone)
-        row = self.conn.execute(
-            'SELECT id FROM providers WHERE normalized_name=? AND provider_type=? AND (phone=? OR ?="") ORDER BY id LIMIT 1',
-            (norm_name, r.provider_type, phone, phone),
-        ).fetchone()
-        if row:
-            pid = int(row['id'])
-            self.conn.execute('UPDATE providers SET name=?, phone=COALESCE(NULLIF(?,""),phone), updated_at=CURRENT_TIMESTAMP WHERE id=?', (r.provider_name.strip(), phone, pid))
-            return pid
-        cur = self.conn.execute(
-            'INSERT INTO providers(provider_type,name,normalized_name,phone) VALUES(?,?,?,?)',
-            (r.provider_type or 'unknown', r.provider_name.strip(), norm_name, phone),
-        )
-        return int(cur.lastrowid)
-
     def upsert_location(self, r: RawRecord) -> int:
         norm_addr = normalize_text(r.address)
         phone = normalize_phone(r.phone)
@@ -123,6 +106,35 @@ class DrLinqStore:
         cur = self.conn.execute(
             'INSERT INTO locations(province,city,district,address,normalized_address,phone) VALUES(?,?,?,?,?,?)',
             (r.province.strip(), r.city.strip(), r.district.strip(), r.address.strip(), norm_addr, phone),
+        )
+        return int(cur.lastrowid)
+
+    def upsert_provider(self, r: RawRecord, location_id: int) -> int:
+        norm_name = normalize_text(r.provider_name)
+        phone = normalize_phone(r.phone)
+        row = None
+        if phone:
+            row = self.conn.execute(
+                'SELECT id FROM providers WHERE normalized_name=? AND provider_type=? AND phone=? ORDER BY id LIMIT 1',
+                (norm_name, r.provider_type or 'unknown', phone),
+            ).fetchone()
+        else:
+            row = self.conn.execute(
+                'SELECT p.id FROM providers p '
+                'JOIN provider_locations pl ON pl.provider_id=p.id '
+                'WHERE p.normalized_name=? AND p.provider_type=? AND pl.location_id=? ORDER BY p.id LIMIT 1',
+                (norm_name, r.provider_type or 'unknown', location_id),
+            ).fetchone()
+        if row:
+            pid = int(row['id'])
+            self.conn.execute(
+                'UPDATE providers SET name=?, phone=COALESCE(NULLIF(?,""),phone), updated_at=CURRENT_TIMESTAMP WHERE id=?',
+                (r.provider_name.strip(), phone, pid),
+            )
+            return pid
+        cur = self.conn.execute(
+            'INSERT INTO providers(provider_type,name,normalized_name,phone) VALUES(?,?,?,?)',
+            (r.provider_type or 'unknown', r.provider_name.strip(), norm_name, phone),
         )
         return int(cur.lastrowid)
 
@@ -141,12 +153,18 @@ class DrLinqStore:
         insurer_id = self.upsert_insurer(r.insurer_name)
         source_id = self.upsert_source(r, insurer_id)
         self.store_raw(r, source_id)
-        provider_id = self.upsert_provider(r)
         location_id = self.upsert_location(r)
-        self.conn.execute('INSERT OR IGNORE INTO provider_locations(provider_id,location_id,is_primary) VALUES(?,?,1)', (provider_id, location_id))
+        provider_id = self.upsert_provider(r, location_id)
+        self.conn.execute(
+            'INSERT OR IGNORE INTO provider_locations(provider_id,location_id,is_primary) VALUES(?,?,1)',
+            (provider_id, location_id),
+        )
         for service in r.services:
             sid = self.upsert_service(service)
-            self.conn.execute('INSERT OR IGNORE INTO provider_services(provider_id,service_id,confidence,source_id) VALUES(?,?,?,?)', (provider_id, sid, 'source_claimed', source_id))
+            self.conn.execute(
+                'INSERT OR IGNORE INTO provider_services(provider_id,service_id,confidence,source_id) VALUES(?,?,?,?)',
+                (provider_id, sid, 'source_claimed', source_id),
+            )
         self.conn.execute(
             'INSERT INTO contracts(provider_id,location_id,insurer_id,status,confidence,source_id,source_record_key,last_seen_at,last_verified_at) '
             'VALUES(?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) '
