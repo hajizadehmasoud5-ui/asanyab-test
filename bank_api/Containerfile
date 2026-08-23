@@ -16,5 +16,6 @@ COPY ingest_iionline_iran.py /app/ingest_iionline_iran.py
 COPY ingest_dana_public.py /app/ingest_dana_public.py
 COPY ingest_asia_official.py /app/ingest_asia_official.py
 COPY refresh_all.py /app/refresh_all.py
+COPY import_discovered.py /app/import_discovered.py
 EXPOSE 8000
 CMD ["python", "-m", "uvicorn", "app_geo:app", "--host", "0.0.0.0", "--port", "8000"]
