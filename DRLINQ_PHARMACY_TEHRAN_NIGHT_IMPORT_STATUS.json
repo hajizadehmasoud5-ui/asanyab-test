@@ -1,0 +1,6 @@
+{
+  "ok": true,
+  "report": "COUNT_BEFORE:\n18\nIMPORT_RESULT:\n{\"ok\": true, \"fetched\": 9, \"inserted\": 9, \"updated\": 0, \"rejected\": 0, \"service\": \"داروخانه\", \"source\": \"Google Maps Healthcare Discovery\", \"contracts_created\": 0}\nREGION_BACKFILL:\n{'ok': True, 'updated': 2, 'regions': {'منطقه ۲۲': 1, 'منطقه ۲۱': 1}}\nCOUNT_AFTER:\n27\nNAMES_SAMPLE:\nداروخانه\nداروخانه تبسم\nداروخانه خانم دکتر بیدگلی\nداروخانه دكتر هادی اسماعيلی\nداروخانه دکتر اقسامی\nداروخانه دکتر دهستانی\nداروخانه دکتر راضیه قورچیان\nداروخانه دکتر زهرا عبدالهی\nداروخانه دکتر صدری\nداروخانه دکتر صوفی بروجردی\nداروخانه دکتر محمود حمیدیان\nداروخانه دکتر مریم بیدگلی\nFILTERS:\n['منطقه ۱۲', 'منطقه ۱۶', 'منطقه ۱۹', 'منطقه ۲۰', 'منطقه ۲۱', 'منطقه ۲۲', 'منطقه ۷']",
+  "error": "",
+  "checked_at_utc": "2026-08-23T21:30:04.390498+00:00"
+}
