@@ -1,0 +1,57 @@
+name: DrLinq Drive Source Probe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/drlinq-drive-download-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe standardized nationwide files
+        id: probe
+        continue-on-error: true
+        run: |
+          set -u
+          mkdir -p /tmp/drlinq-probe
+          python3 - <<'PY'
+          import urllib.request, pathlib, json
+          files={
+            'dana':'1H1ySc-mdEVh6r3Sjk6Jzd8yt9dZwlLQt',
+            'alborz':'1i6yDfbDHHjplROcX6mXRVIHyua9dInNw',
+          }
+          out={}
+          for name,fid in files.items():
+            url=f'https://drive.usercontent.google.com/download?id={fid}&export=download&confirm=t'
+            p=pathlib.Path('/tmp/drlinq-probe')/f'{name}.xlsx'
+            try:
+              req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0 DrLinq/1.0'})
+              with urllib.request.urlopen(req,timeout=45) as r:
+                data=r.read()
+                ctype=r.headers.get('content-type','')
+                final=r.geturl()
+              p.write_bytes(data)
+              out[name]={'ok':data[:2]==b'PK','bytes':len(data),'content_type':ctype,'final_url':final[:300]}
+            except Exception as e:
+              out[name]={'ok':False,'error':repr(e)}
+          pathlib.Path('/tmp/drlinq-probe/report.json').write_text(json.dumps(out,ensure_ascii=False,indent=2))
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          PY
+      - name: Write status
+        run: |
+          cp /tmp/drlinq-probe/report.json DRLINQ_DRIVE_SOURCE_PROBE.json || echo '{"ok":false,"error":"probe report missing"}' > DRLINQ_DRIVE_SOURCE_PROBE.json
+      - name: Commit status
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DRLINQ_DRIVE_SOURCE_PROBE.json
+          git commit -m "Record DrLinq Drive source probe" || exit 0
+          git push
