@@ -7,6 +7,12 @@ on:
     paths:
       - 'automation/insurance_harvest.py'
       - '.github/workflows/insurance-source-harvest.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'automation/insurance_harvest.py'
+      - '.github/workflows/insurance-source-harvest.yml'
   workflow_dispatch:
 
 jobs:
