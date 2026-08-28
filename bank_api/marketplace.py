@@ -162,7 +162,7 @@ def install_marketplace(
               AND (
                 s.normalized_name=%s
                 OR s.normalized_name LIKE %s
-                OR %s LIKE ('%' || s.normalized_name || '%')
+                OR %s LIKE ('%%' || s.normalized_name || '%%')
                 OR EXISTS (
                   SELECT 1 FROM bank_service_aliases sa
                   WHERE sa.service_id=s.id
