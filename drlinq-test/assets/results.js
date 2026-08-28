@@ -18,6 +18,8 @@ const pageSize = 24;
 let rawItems = [];
 let offset = 0;
 let total = 0;
+let hasMore = false;
+let totalIsExact = true;
 let loading = false;
 
 function filterParams(overrides = {}) {
@@ -85,10 +87,10 @@ function providerCard(item) {
 function renderResults() {
   const rows = dedupeProviders(rawItems);
   resultList.innerHTML = rows.map(providerCard).join('');
-  $('resultStatus').textContent = total
+  $('resultStatus').textContent = totalIsExact
     ? `${toPersianNumber(total)} رکورد منطبق در بانک پیدا شد؛ موارد تکراری در نمایش ادغام می‌شوند.`
-    : '';
-  loadMore.hidden = rawItems.length >= total || total === 0;
+    : `${toPersianNumber(rows.length)} مرکز منطبق تا اینجا نمایش داده شده؛ تعداد نهایی از API فعلی در دسترس نیست.`;
+  loadMore.hidden = !hasMore;
 }
 
 function emptyState() {
@@ -128,6 +130,9 @@ async function load(reset = false) {
   if (reset) {
     offset = 0;
     rawItems = [];
+    total = 0;
+    hasMore = false;
+    totalIsExact = true;
     resultList.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
   }
   loadMore.disabled = true;
@@ -137,6 +142,8 @@ async function load(reset = false) {
     total = data.total || 0;
     rawItems.push(...(data.items || []));
     offset += data.items?.length || 0;
+    hasMore = data.has_more ?? rawItems.length < total;
+    totalIsExact = data.total_is_exact !== false;
     if (!rawItems.length) emptyState();
     else renderResults();
   } catch {

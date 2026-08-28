@@ -188,7 +188,8 @@ export function phoneHref(phone = '') {
 }
 
 export function isCallablePhone(phone = '') {
-  return phoneHref(phone).replace(/\D/g, '').length >= 7;
+  const length = phoneHref(phone).replace(/\D/g, '').length;
+  return length >= 7 && length <= 15;
 }
 
 export function toPersianNumber(value) {

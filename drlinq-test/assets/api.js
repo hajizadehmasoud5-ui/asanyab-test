@@ -41,9 +41,13 @@ export async function searchProviders(filters, options = {}) {
     }));
     const limit = Number(filters.limit || legacy.limit || items.length || 1);
     const offset = Number(filters.offset || legacy.offset || 0);
+    const legacyTotal = Number(legacy.total);
+    const hasExactTotal = legacy.total !== null && legacy.total !== undefined && Number.isFinite(legacyTotal) && legacyTotal >= 0;
     return {
       items,
-      total: offset + items.length + (items.length === limit ? 1 : 0),
+      total: hasExactTotal ? legacyTotal : offset + items.length,
+      has_more: hasExactTotal ? offset + items.length < legacyTotal : items.length === limit,
+      total_is_exact: hasExactTotal,
       limit,
       offset,
       legacy: true,
