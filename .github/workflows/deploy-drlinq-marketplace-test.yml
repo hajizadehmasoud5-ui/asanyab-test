@@ -248,7 +248,10 @@ jobs:
               url = f"{base}{path}"
               if params:
                   url += "?" + urlencode(params)
-              request = Request(url, headers={"Accept": "application/json"})
+              request = Request(url, headers={
+                  "Accept": "application/json",
+                  "User-Agent": "Mozilla/5.0 (compatible; DrLinq-Test-Verifier/1.0)",
+              })
               with urlopen(request, timeout=30) as response:
                   return json.load(response)
 
