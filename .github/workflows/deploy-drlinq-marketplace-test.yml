@@ -77,7 +77,7 @@ jobs:
           api_image="drlinq-bank-api-test:$release_id"
           web_image="drlinq-marketplace-test:$release_id"
           docker build -t "$api_image" -f "$release_root/bank_api/Containerfile.marketplace-test" "$release_root/bank_api"
-          docker build -t "$web_image" "$release_root/drlinq-test"
+          docker build -t "$web_image" -f "$release_root/drlinq-test/Containerfile" "$release_root/drlinq-test"
 
           get_container_env() {
             docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$1" \
