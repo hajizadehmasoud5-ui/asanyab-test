@@ -1,0 +1,155 @@
+name: Deploy DrLinq Marketplace Test
+
+on:
+  push:
+    branches: [drlinq-patient-marketplace-v1]
+    paths:
+      - 'marketplace-v1/**'
+      - 'bank_api/app.py'
+      - 'bank_api/app_geo.py'
+      - 'bank_api/app_marketplace.py'
+      - 'bank_api/schema.sql'
+      - 'bank_api/requirements.txt'
+      - 'bank_api/Containerfile.marketplace-test'
+      - '.github/workflows/deploy-drlinq-marketplace-test.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: drlinq-marketplace-test
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run static and unit checks
+        run: |
+          node --test marketplace-v1/tests/core.test.mjs
+          python3 -m py_compile bank_api/app.py bank_api/app_geo.py bank_api/app_marketplace.py
+          test "$(grep -RIl 'Cloudiva\|cldv.dev' marketplace-v1 | wc -l)" = "0"
+          test -f marketplace-v1/index.html
+          test -f marketplace-v1/results.html
+          test -f marketplace-v1/provider.html
+
+      - name: Prepare deployment archive
+        run: tar -czf /tmp/drlinq-marketplace-test.tgz marketplace-v1 bank_api
+
+      - name: Install SSH client helper
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass
+
+      - name: Deploy isolated test containers
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+        run: |
+          : "${VPS_PORT:=22}"
+          mkdir -p ~/.ssh
+          ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          sshpass -e scp -P "$VPS_PORT" /tmp/drlinq-marketplace-test.tgz "$VPS_USER@$VPS_HOST:/tmp/drlinq-marketplace-test.tgz"
+          sshpass -e ssh -o ConnectTimeout=20 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          test_root=/opt/drlinq/marketplace-test
+          mkdir -p "$test_root/source"
+          tar -xzf /tmp/drlinq-marketplace-test.tgz -C "$test_root/source"
+
+          docker build -t drlinq-marketplace-test:latest "$test_root/source/marketplace-v1"
+          docker build -t drlinq-bank-api-test:latest -f "$test_root/source/bank_api/Containerfile.marketplace-test" "$test_root/source/bank_api"
+
+          docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' drlinq-bank-api | sed -n '/^DB_/p' > "$test_root/bank.env"
+          chmod 600 "$test_root/bank.env"
+          test "$(grep -c '^DB_' "$test_root/bank.env")" -ge 5
+
+          docker rm -f drlinq-marketplace-test drlinq-bank-api-test >/dev/null 2>&1 || true
+          docker run -d --name drlinq-bank-api-test --restart unless-stopped --network drlinq-internal --env-file "$test_root/bank.env" -e SKIP_SCHEMA_INIT=1 drlinq-bank-api-test:latest >/dev/null
+          docker run -d --name drlinq-marketplace-test --restart unless-stopped --network drlinq-internal drlinq-marketplace-test:latest >/dev/null
+
+          for attempt in $(seq 1 30); do
+            docker exec drlinq-bank-api-test python -c "import requests; r=requests.get('http://127.0.0.1:8000/health',timeout=3); r.raise_for_status()" >/dev/null 2>&1 && break
+            sleep 2
+          done
+          docker exec drlinq-bank-api-test python -c "import requests; r=requests.get('http://127.0.0.1:8000/health',timeout=5); r.raise_for_status()"
+          docker exec drlinq-marketplace-test wget -qO- http://127.0.0.1/health.json >/dev/null
+
+          caddy_file=/opt/drlinq/Caddyfile
+          caddy_backup="$test_root/Caddyfile.pre-marketplace-test"
+          cp "$caddy_file" "$caddy_backup"
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('/opt/drlinq/Caddyfile')
+          text = path.read_text()
+          marker = '# BEGIN DRLINQ MARKETPLACE TEST'
+          if marker not in text:
+              needle = '  reverse_proxy n8n:5678'
+              if needle not in text:
+                  raise SystemExit('default n8n reverse_proxy route not found')
+              routes = '''  # BEGIN DRLINQ MARKETPLACE TEST
+            handle_path /drlinq-test/api/* {
+              reverse_proxy drlinq-bank-api-test:8000
+            }
+            handle_path /drlinq-test/* {
+              reverse_proxy drlinq-marketplace-test:80
+            }
+            # END DRLINQ MARKETPLACE TEST
+            handle {
+              reverse_proxy n8n:5678
+            }'''
+              text = text.replace(needle, routes, 1)
+              path.write_text(text)
+          PY
+
+          if ! docker exec drlinq-caddy caddy validate --config /etc/caddy/Caddyfile >/dev/null; then
+            cp "$caddy_backup" "$caddy_file"
+            docker exec drlinq-caddy caddy reload --config /etc/caddy/Caddyfile >/dev/null || true
+            exit 1
+          fi
+          docker exec drlinq-caddy caddy reload --config /etc/caddy/Caddyfile >/dev/null
+
+          ok=0
+          for attempt in $(seq 1 30); do
+            if curl -fsS https://n8n.drlinq.ir/drlinq-test/health.json >/dev/null \
+              && curl -fsS https://n8n.drlinq.ir/drlinq-test/api/health >/dev/null \
+              && curl -fsS https://n8n.drlinq.ir/drlinq-test/api/marketplace/meta >/dev/null; then
+              ok=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ok" != 1 ]; then
+            cp "$caddy_backup" "$caddy_file"
+            docker exec drlinq-caddy caddy reload --config /etc/caddy/Caddyfile >/dev/null || true
+            exit 1
+          fi
+          REMOTE
+
+      - name: Verify public patient scenarios
+        run: |
+          base='https://n8n.drlinq.ir/drlinq-test'
+          curl -fsS "$base/" | grep -q 'برای درمانت، جای مناسب را پیدا کن'
+          curl -fsS "$base/results.html" | grep -q 'فهرست مراکز'
+          curl -fsS "$base/provider.html" | grep -q 'detailRoot'
+          curl -fsS "$base/api/health" | grep -q 'drlinq-bank-api'
+          curl -fsS --get "$base/api/marketplace/providers" \
+            --data-urlencode 'service=دندانپزشکی' \
+            --data-urlencode 'province=خوزستان' \
+            --data-urlencode 'city=اهواز' \
+            --data-urlencode 'limit=5' | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['total']>0 and len(d['items'])>0"
+          curl -fsS --get "$base/api/marketplace/providers" \
+            --data-urlencode 'service=آزمایشگاه' \
+            --data-urlencode 'province=خوزستان' \
+            --data-urlencode 'city=اهواز' \
+            --data-urlencode 'insurer=بیمه البرز' \
+            --data-urlencode 'limit=5' | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['total']>0; assert all('بیمه البرز' in x['insurers'] for x in d['items'])"
+          curl -fsS --get "$base/api/marketplace/providers" \
+            --data-urlencode 'service=خدمت-غیرواقعی-برای-تست' \
+            --data-urlencode 'province=خوزستان' \
+            --data-urlencode 'city=اهواز' | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['total']==0 and d['items']==[]"

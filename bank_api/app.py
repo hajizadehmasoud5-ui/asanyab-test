@@ -44,6 +44,8 @@ def db():
 
 @app.on_event("startup")
 def startup() -> None:
+    if os.environ.get("SKIP_SCHEMA_INIT") == "1":
+        return
     schema = Path(__file__).with_name("schema.sql").read_text(encoding="utf-8")
     with db() as conn:
         conn.execute(schema)
