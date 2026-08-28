@@ -22,13 +22,20 @@ app.add_middleware(
 
 
 def dsn() -> str:
-    return " ".join([
+    parts = [
         f"host={os.environ.get('DB_HOST', 'postgres')}",
         f"port={os.environ.get('DB_PORT', '5432')}",
         f"dbname={os.environ['DB_NAME']}",
         f"user={os.environ['DB_USER']}",
         f"password={os.environ['DB_PASSWORD']}",
-    ])
+    ]
+    if os.environ.get("DB_READ_ONLY") == "1":
+        parts.append(
+            "options='-c default_transaction_read_only=on "
+            "-c statement_timeout=15000 "
+            "-c idle_in_transaction_session_timeout=15000'"
+        )
+    return " ".join(parts)
 
 
 def norm(value: str) -> str:
@@ -39,11 +46,15 @@ def norm(value: str) -> str:
 @contextmanager
 def db():
     with psycopg.connect(dsn(), row_factory=dict_row) as conn:
+        if os.environ.get("DB_READ_ONLY") == "1":
+            conn.execute("SET TRANSACTION READ ONLY")
         yield conn
 
 
 @app.on_event("startup")
 def startup() -> None:
+    if os.environ.get("DB_READ_ONLY") == "1" and os.environ.get("SKIP_SCHEMA_INIT") != "1":
+        raise RuntimeError("DB_READ_ONLY requires SKIP_SCHEMA_INIT=1")
     if os.environ.get("SKIP_SCHEMA_INIT") == "1":
         return
     schema = Path(__file__).with_name("schema.sql").read_text(encoding="utf-8")
@@ -181,8 +192,15 @@ def service_picker_html(values, selected_value: str) -> str:
 @app.get("/health")
 def health():
     with db() as conn:
-        row = conn.execute("SELECT 1 AS ok").fetchone()
-    return {"ok": bool(row and row["ok"] == 1), "service": "drlinq-bank-api"}
+        row = conn.execute(
+            "SELECT 1 AS ok, current_setting('transaction_read_only') AS transaction_read_only"
+        ).fetchone()
+    read_only = bool(row and row["transaction_read_only"] == "on")
+    return {
+        "ok": bool(row and row["ok"] == 1),
+        "service": "drlinq-bank-api",
+        "read_only": read_only,
+    }
 
 
 @app.get("/stats")

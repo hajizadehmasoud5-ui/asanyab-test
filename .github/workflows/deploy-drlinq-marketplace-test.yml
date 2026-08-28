@@ -1,22 +1,11 @@
 name: Deploy DrLinq Marketplace Test
 
 on:
-  push:
-    branches: [drlinq-patient-marketplace-v1]
-    paths:
-      - 'marketplace-v1/**'
-      - 'bank_api/app.py'
-      - 'bank_api/app_geo.py'
-      - 'bank_api/app_marketplace.py'
-      - 'bank_api/schema.sql'
-      - 'bank_api/requirements.txt'
-      - 'bank_api/Containerfile.marketplace-test'
-      - '.github/workflows/deploy-drlinq-marketplace-test.yml'
   workflow_dispatch:
 
 concurrency:
   group: drlinq-marketplace-test
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -30,15 +19,17 @@ jobs:
 
       - name: Run static and unit checks
         run: |
-          node --test marketplace-v1/tests/core.test.mjs
+          node --test drlinq-test/tests/core.test.mjs
           python3 -m py_compile bank_api/app.py bank_api/app_geo.py bank_api/app_marketplace.py
-          test "$(grep -RIl 'Cloudiva\|cldv.dev' marketplace-v1 | wc -l)" = "0"
-          test -f marketplace-v1/index.html
-          test -f marketplace-v1/results.html
-          test -f marketplace-v1/provider.html
+          test "$(grep -RIl 'Cloudiva\|cldv.dev' drlinq-test | wc -l)" = "0"
+          test -f drlinq-test/index.html
+          test -f drlinq-test/results.html
+          test -f drlinq-test/provider.html
+          grep -q 'max-width: 640px' drlinq-test/assets/styles.css
+          grep -q 'width=device-width' drlinq-test/index.html
 
       - name: Prepare deployment archive
-        run: tar -czf /tmp/drlinq-marketplace-test.tgz marketplace-v1 bank_api
+        run: tar -czf /tmp/drlinq-marketplace-test.tgz drlinq-test bank_api
 
       - name: Install SSH client helper
         run: |
@@ -56,100 +47,238 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
           sshpass -e scp -P "$VPS_PORT" /tmp/drlinq-marketplace-test.tgz "$VPS_USER@$VPS_HOST:/tmp/drlinq-marketplace-test.tgz"
-          sshpass -e ssh -o ConnectTimeout=20 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'bash -s' <<'REMOTE'
+          sshpass -e ssh -o ConnectTimeout=20 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "bash -s -- '$GITHUB_SHA'" <<'REMOTE'
           set -euo pipefail
+
+          release_sha="$1"
+          release_id="${release_sha:0:12}"
           test_root=/opt/drlinq/marketplace-test
-          mkdir -p "$test_root/source"
-          tar -xzf /tmp/drlinq-marketplace-test.tgz -C "$test_root/source"
+          release_root="$test_root/releases/$release_id"
+          caddy_file=/opt/drlinq/Caddyfile
+          caddy_backup="$test_root/caddy/Caddyfile.$release_id.before"
+          api_name=drlinq-bank-api-test
+          web_name=drlinq-marketplace-test
+          backup_suffix="backup-$(date +%s)"
+          api_backup="${api_name}-${backup_suffix}"
+          web_backup="${web_name}-${backup_suffix}"
 
-          docker build -t drlinq-marketplace-test:latest "$test_root/source/marketplace-v1"
-          docker build -t drlinq-bank-api-test:latest -f "$test_root/source/bank_api/Containerfile.marketplace-test" "$test_root/source/bank_api"
+          mkdir -p "$release_root" "$test_root/caddy"
+          tar -xzf /tmp/drlinq-marketplace-test.tgz -C "$release_root"
 
-          docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' drlinq-bank-api | sed -n '/^DB_/p' > "$test_root/bank.env"
-          chmod 600 "$test_root/bank.env"
-          test "$(grep -c '^DB_' "$test_root/bank.env")" -ge 5
+          live_root_hash_before="$(curl -fsSL --max-time 30 https://drlinq.ir/ | sha256sum | awk '{print $1}')"
+          curl -fsSL --max-time 30 https://n8n.drlinq.ir/ >/dev/null
 
-          docker rm -f drlinq-marketplace-test drlinq-bank-api-test >/dev/null 2>&1 || true
-          docker run -d --name drlinq-bank-api-test --restart unless-stopped --network drlinq-internal --env-file "$test_root/bank.env" -e SKIP_SCHEMA_INIT=1 drlinq-bank-api-test:latest >/dev/null
-          docker run -d --name drlinq-marketplace-test --restart unless-stopped --network drlinq-internal drlinq-marketplace-test:latest >/dev/null
+          api_image="drlinq-bank-api-test:$release_id"
+          web_image="drlinq-marketplace-test:$release_id"
+          docker build -t "$api_image" -f "$release_root/bank_api/Containerfile.marketplace-test" "$release_root/bank_api"
+          docker build -t "$web_image" "$release_root/drlinq-test"
+
+          get_container_env() {
+            docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$1" \
+              | sed -n "s/^$2=//p" | head -n 1
+          }
+
+          db_name="$(get_container_env drlinq-bank-api DB_NAME)"
+          db_host="$(get_container_env drlinq-bank-api DB_HOST)"
+          db_port="$(get_container_env drlinq-bank-api DB_PORT)"
+          db_admin="$(get_container_env drlinq-postgres POSTGRES_USER)"
+          : "${db_host:=postgres}"
+          : "${db_port:=5432}"
+          : "${db_admin:=postgres}"
+          test -n "$db_name"
+          case "$db_name$db_host$db_port$db_admin" in
+            *[!A-Za-z0-9_.-]*) echo "Unexpected database identifier" >&2; exit 1 ;;
+          esac
+
+          ro_password="$(openssl rand -hex 24)"
+          docker exec -i drlinq-postgres psql -v ON_ERROR_STOP=1 -U "$db_admin" -d "$db_name" <<'SQL'
+          DO $$
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='drlinq_marketplace_ro') THEN
+              CREATE ROLE drlinq_marketplace_ro LOGIN;
+            END IF;
+          END
+          $$;
+          ALTER ROLE drlinq_marketplace_ro NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION;
+          ALTER ROLE drlinq_marketplace_ro SET default_transaction_read_only=on;
+          REVOKE CREATE ON SCHEMA public FROM drlinq_marketplace_ro;
+          GRANT USAGE ON SCHEMA public TO drlinq_marketplace_ro;
+          REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM drlinq_marketplace_ro;
+          GRANT SELECT ON ALL TABLES IN SCHEMA public TO drlinq_marketplace_ro;
+          REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM drlinq_marketplace_ro;
+          SQL
+          docker exec drlinq-postgres psql -v ON_ERROR_STOP=1 -U "$db_admin" -d "$db_name" \
+            -c "ALTER ROLE drlinq_marketplace_ro PASSWORD '$ro_password';" >/dev/null
+
+          ro_env="$test_root/bank-read-only.env"
+          umask 077
+          {
+            printf 'DB_HOST=%s\n' "$db_host"
+            printf 'DB_PORT=%s\n' "$db_port"
+            printf 'DB_NAME=%s\n' "$db_name"
+            printf 'DB_USER=drlinq_marketplace_ro\n'
+            printf 'DB_PASSWORD=%s\n' "$ro_password"
+            printf 'SKIP_SCHEMA_INIT=1\n'
+            printf 'DB_READ_ONLY=1\n'
+            printf 'PYTHONDONTWRITEBYTECODE=1\n'
+          } > "$ro_env"
+          chmod 600 "$ro_env"
+
+          had_api=0
+          had_web=0
+          restore_previous() {
+            set +e
+            docker rm -f "$api_name" "$web_name" >/dev/null 2>&1
+            if [ "$had_api" = 1 ]; then docker rename "$api_backup" "$api_name"; docker start "$api_name" >/dev/null; fi
+            if [ "$had_web" = 1 ]; then docker rename "$web_backup" "$web_name"; docker start "$web_name" >/dev/null; fi
+            if [ -f "$caddy_backup" ]; then
+              cp "$caddy_backup" "$caddy_file"
+              docker exec drlinq-caddy caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1
+            fi
+          }
+          trap restore_previous ERR
+
+          if docker container inspect "$api_name" >/dev/null 2>&1; then
+            had_api=1
+            docker stop "$api_name" >/dev/null
+            docker rename "$api_name" "$api_backup"
+          fi
+          if docker container inspect "$web_name" >/dev/null 2>&1; then
+            had_web=1
+            docker stop "$web_name" >/dev/null
+            docker rename "$web_name" "$web_backup"
+          fi
+
+          docker run -d --name "$api_name" --restart unless-stopped \
+            --network drlinq-internal --env-file "$ro_env" \
+            --read-only --tmpfs /tmp:rw,noexec,nosuid,size=32m \
+            --security-opt no-new-privileges --cap-drop ALL \
+            "$api_image" >/dev/null
+          docker run -d --name "$web_name" --restart unless-stopped \
+            --network drlinq-internal \
+            --security-opt no-new-privileges \
+            "$web_image" >/dev/null
 
           for attempt in $(seq 1 30); do
-            docker exec drlinq-bank-api-test python -c "import requests; r=requests.get('http://127.0.0.1:8000/health',timeout=3); r.raise_for_status()" >/dev/null 2>&1 && break
+            if docker exec "$api_name" python -c \
+              "import requests; d=requests.get('http://127.0.0.1:8000/health',timeout=3).json(); assert d['ok'] and d['read_only']" \
+              >/dev/null 2>&1; then break; fi
             sleep 2
           done
-          docker exec drlinq-bank-api-test python -c "import requests; r=requests.get('http://127.0.0.1:8000/health',timeout=5); r.raise_for_status()"
-          docker exec drlinq-marketplace-test wget -qO- http://127.0.0.1/health.json >/dev/null
+          docker exec "$api_name" python -c \
+            "import requests; d=requests.get('http://127.0.0.1:8000/health',timeout=5).json(); assert d['ok'] and d['read_only']"
+          docker exec "$api_name" python -c \
+            "import requests; r=requests.get('http://127.0.0.1:8000/marketplace/meta',timeout=15); r.raise_for_status(); assert r.json()['counts']['providers']>0"
+          docker exec "$web_name" wget -qO- http://127.0.0.1/health.json >/dev/null
 
-          caddy_file=/opt/drlinq/Caddyfile
-          caddy_backup="$test_root/Caddyfile.pre-marketplace-test"
           cp "$caddy_file" "$caddy_backup"
-          python3 - <<'PY'
+          python3 - "$caddy_file" <<'PY'
+          import re
+          import sys
           from pathlib import Path
-          path = Path('/opt/drlinq/Caddyfile')
-          text = path.read_text()
-          marker = '# BEGIN DRLINQ MARKETPLACE TEST'
-          if marker not in text:
-              needle = '  reverse_proxy n8n:5678'
-              if needle not in text:
-                  raise SystemExit('default n8n reverse_proxy route not found')
-              routes = '''  # BEGIN DRLINQ MARKETPLACE TEST
+
+          path = Path(sys.argv[1])
+          text = path.read_text(encoding="utf-8")
+          begin = "# BEGIN DRLINQ MARKETPLACE TEST"
+          block = """  # BEGIN DRLINQ MARKETPLACE TEST
             handle_path /drlinq-test/api/* {
               reverse_proxy drlinq-bank-api-test:8000
             }
             handle_path /drlinq-test/* {
               reverse_proxy drlinq-marketplace-test:80
             }
-            # END DRLINQ MARKETPLACE TEST
             handle {
               reverse_proxy n8n:5678
-            }'''
-              text = text.replace(needle, routes, 1)
-              path.write_text(text)
+            }
+            # END DRLINQ MARKETPLACE TEST"""
+
+          if begin in text:
+              pattern = re.compile(r"(?ms)^\s*# BEGIN DRLINQ MARKETPLACE TEST.*?^\s*# END DRLINQ MARKETPLACE TEST\s*$")
+              updated, count = pattern.subn(block, text, count=1)
+              if count != 1:
+                  raise SystemExit("existing test route block could not be replaced")
+          else:
+              pattern = re.compile(r"(?m)^\s*reverse_proxy\s+n8n:5678\s*$")
+              updated, count = pattern.subn(block, text, count=1)
+              if count != 1:
+                  raise SystemExit("n8n fallback proxy was not found")
+          path.write_text(updated, encoding="utf-8")
           PY
 
-          if ! docker exec drlinq-caddy caddy validate --config /etc/caddy/Caddyfile >/dev/null; then
-            cp "$caddy_backup" "$caddy_file"
-            docker exec drlinq-caddy caddy reload --config /etc/caddy/Caddyfile >/dev/null || true
-            exit 1
-          fi
+          docker exec drlinq-caddy caddy validate --config /etc/caddy/Caddyfile >/dev/null
           docker exec drlinq-caddy caddy reload --config /etc/caddy/Caddyfile >/dev/null
 
           ok=0
           for attempt in $(seq 1 30); do
-            if curl -fsS https://n8n.drlinq.ir/drlinq-test/health.json >/dev/null \
-              && curl -fsS https://n8n.drlinq.ir/drlinq-test/api/health >/dev/null \
-              && curl -fsS https://n8n.drlinq.ir/drlinq-test/api/marketplace/meta >/dev/null; then
+            if curl -fsS --max-time 15 https://n8n.drlinq.ir/drlinq-test/health.json >/dev/null \
+              && curl -fsS --max-time 15 https://n8n.drlinq.ir/drlinq-test/api/health \
+                | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['ok'] and d['read_only']" \
+              && curl -fsS --max-time 15 https://n8n.drlinq.ir/drlinq-test/api/marketplace/meta >/dev/null; then
               ok=1
               break
             fi
             sleep 2
           done
-          if [ "$ok" != 1 ]; then
-            cp "$caddy_backup" "$caddy_file"
-            docker exec drlinq-caddy caddy reload --config /etc/caddy/Caddyfile >/dev/null || true
-            exit 1
-          fi
+          test "$ok" = 1
+          curl -fsSL --max-time 30 https://n8n.drlinq.ir/ >/dev/null
+          live_root_hash_after="$(curl -fsSL --max-time 30 https://drlinq.ir/ | sha256sum | awk '{print $1}')"
+          test "$live_root_hash_before" = "$live_root_hash_after"
+
+          trap - ERR
+          if [ "$had_api" = 1 ]; then docker rm -f "$api_backup" >/dev/null; fi
+          if [ "$had_web" = 1 ]; then docker rm -f "$web_backup" >/dev/null; fi
           REMOTE
 
       - name: Verify public patient scenarios
         run: |
-          base='https://n8n.drlinq.ir/drlinq-test'
-          curl -fsS "$base/" | grep -q 'برای درمانت، جای مناسب را پیدا کن'
-          curl -fsS "$base/results.html" | grep -q 'فهرست مراکز'
-          curl -fsS "$base/provider.html" | grep -q 'detailRoot'
-          curl -fsS "$base/api/health" | grep -q 'drlinq-bank-api'
-          curl -fsS --get "$base/api/marketplace/providers" \
-            --data-urlencode 'service=دندانپزشکی' \
-            --data-urlencode 'province=خوزستان' \
-            --data-urlencode 'city=اهواز' \
-            --data-urlencode 'limit=5' | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['total']>0 and len(d['items'])>0"
-          curl -fsS --get "$base/api/marketplace/providers" \
-            --data-urlencode 'service=آزمایشگاه' \
-            --data-urlencode 'province=خوزستان' \
-            --data-urlencode 'city=اهواز' \
-            --data-urlencode 'insurer=بیمه البرز' \
-            --data-urlencode 'limit=5' | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['total']>0; assert all('بیمه البرز' in x['insurers'] for x in d['items'])"
-          curl -fsS --get "$base/api/marketplace/providers" \
-            --data-urlencode 'service=خدمت-غیرواقعی-برای-تست' \
-            --data-urlencode 'province=خوزستان' \
-            --data-urlencode 'city=اهواز' | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['total']==0 and d['items']==[]"
+          python3 - <<'PY'
+          import json
+          from urllib.parse import urlencode
+          from urllib.request import Request, urlopen
+
+          base = "https://n8n.drlinq.ir/drlinq-test"
+
+          def get_json(path, params=None):
+              url = f"{base}{path}"
+              if params:
+                  url += "?" + urlencode(params)
+              request = Request(url, headers={"Accept": "application/json"})
+              with urlopen(request, timeout=30) as response:
+                  return json.load(response)
+
+          health = get_json("/api/health")
+          assert health["ok"] is True and health["read_only"] is True
+
+          filters = get_json("/api/filters")
+          assert "خوزستان" in filters["provinces"]
+          cities = get_json("/api/filters", {"province": "خوزستان"})
+          assert "اهواز" in cities["cities"]
+
+          free = get_json("/api/marketplace/providers", {
+              "service": "دندانپزشکی", "province": "خوزستان", "city": "اهواز", "limit": 5,
+          })
+          assert free["total"] > 0 and free["items"]
+
+          insured = get_json("/api/marketplace/providers", {
+              "service": "آزمایشگاه", "province": "خوزستان", "city": "اهواز",
+              "insurer": "بیمه البرز", "limit": 5,
+          })
+          assert insured["total"] > 0 and insured["items"]
+          assert all("بیمه البرز" in item["insurers"] for item in insured["items"])
+
+          first = insured["items"][0]
+          detail = get_json(
+              f"/api/marketplace/providers/{first['id']}",
+              {"location_id": first["location_id"]},
+          )
+          assert detail["id"] == first["id"] and detail["locations"]
+
+          empty = get_json("/api/marketplace/providers", {
+              "service": "خدمت-غیرواقعی-برای-تست", "province": "خوزستان", "city": "اهواز",
+          })
+          assert empty["total"] == 0 and empty["items"] == []
+          PY
+
+          curl -fsS --max-time 30 https://n8n.drlinq.ir/drlinq-test/ | grep -q 'برای درمانت، جای مناسب را پیدا کن'
+          curl -fsS --max-time 30 https://n8n.drlinq.ir/drlinq-test/results.html | grep -q 'فهرست مراکز'
+          curl -fsS --max-time 30 https://n8n.drlinq.ir/drlinq-test/provider.html | grep -q 'detailRoot'
