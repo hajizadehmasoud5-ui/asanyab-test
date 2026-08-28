@@ -1,4 +1,4 @@
-import { getProvider } from './api.js';
+import { getProvider } from './api.js?v=1.0.1';
 import {
   buildPageUrl,
   displayDate,
@@ -8,7 +8,7 @@ import {
   safeExternalUrl,
   searchParamsFromLocation,
   verificationState,
-} from './core.js';
+} from './core.js?v=1.0.1';
 
 const root = document.getElementById('detailRoot');
 const query = new URLSearchParams(window.location.search);
