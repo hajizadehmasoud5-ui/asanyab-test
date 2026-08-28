@@ -6,6 +6,8 @@ on:
     paths:
       - 'bank_api/app.py'
       - 'bank_api/app_geo.py'
+      - 'bank_api/marketplace.py'
+      - 'bank_api/marketplace_smoke.py'
       - 'bank_api/normalize_geography.py'
       - 'bank_api/fix_geo_aliases.py'
       - 'bank_api/schema.sql'
@@ -64,6 +66,9 @@ jobs:
 
           echo 'HEALTH:'
           curl -fsS https://n8n.drlinq.ir/bank/health
+          echo
+          echo 'MARKETPLACE_E2E:'
+          docker exec drlinq-bank-api python /app/marketplace_smoke.py --base-url http://127.0.0.1:8000
           echo
           echo 'TEHRAN_CITIES_SAMPLE:'
           curl -fsS -G 'https://n8n.drlinq.ir/bank/filters' --data-urlencode 'province=تهران' | head -c 1500

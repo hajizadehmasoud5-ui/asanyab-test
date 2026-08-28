@@ -11,12 +11,23 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="DrLinq Provider Bank", version="0.8.0")
+APP_NAME = os.environ.get("APP_NAME", "DrLinq Marketplace")
+BRAND_NAME = os.environ.get("BRAND_NAME", "دکترلینک")
+DOMAIN = os.environ.get("DOMAIN", "drlinq.ir")
+
+app = FastAPI(title=APP_NAME, version="0.9.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://drlinq.ir", "https://www.drlinq.ir"],
+    allow_origins=[
+        origin.strip()
+        for origin in os.environ.get(
+            "DRLINQ_CORS_ORIGINS",
+            f"https://{DOMAIN},https://www.{DOMAIN}",
+        ).split(",")
+        if origin.strip()
+    ],
     allow_credentials=False,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -180,7 +191,13 @@ def service_picker_html(values, selected_value: str) -> str:
 def health():
     with db() as conn:
         row = conn.execute("SELECT 1 AS ok").fetchone()
-    return {"ok": bool(row and row["ok"] == 1), "service": "drlinq-bank-api"}
+    return {
+        "ok": bool(row and row["ok"] == 1),
+        "service": "drlinq-bank-api",
+        "app_name": APP_NAME,
+        "brand_name": BRAND_NAME,
+        "domain": DOMAIN,
+    }
 
 
 @app.get("/stats")
