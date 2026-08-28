@@ -80,22 +80,22 @@ jobs:
           . /opt/drlinq/.env
           set +a
           prod_before="$(docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" "$PROD_DB_CONTAINER" \
-            psql -At -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+            psql -h 127.0.0.1 -At -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
             -c "SELECT count(*) FROM bank_providers")"
 
           docker exec -e PGPASSWORD="$TEST_DB_PASSWORD" "$TEST_DB_CONTAINER" \
-            psql -v ON_ERROR_STOP=1 -U "$TEST_DB_USER" -d "$TEST_DB_NAME" \
+            psql -h 127.0.0.1 -v ON_ERROR_STOP=1 -U "$TEST_DB_USER" -d "$TEST_DB_NAME" \
             -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public; CREATE EXTENSION IF NOT EXISTS pgcrypto;'
 
           dump_file="$(mktemp /tmp/drlinq-bank-copy.XXXXXX.sql)"
           trap 'find /tmp -maxdepth 1 -name "drlinq-bank-copy.*.sql" -type f -delete' EXIT
           docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" "$PROD_DB_CONTAINER" \
-            pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-privileges \
+            pg_dump -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-privileges \
             -t bank_sources -t bank_providers -t bank_locations \
             -t bank_provider_locations -t bank_services -t bank_service_aliases \
             -t bank_provider_services -t bank_insurers -t bank_contracts > "$dump_file"
           docker exec -i -e PGPASSWORD="$TEST_DB_PASSWORD" "$TEST_DB_CONTAINER" \
-            psql -v ON_ERROR_STOP=1 -U "$TEST_DB_USER" -d "$TEST_DB_NAME" < "$dump_file" >/dev/null
+            psql -h 127.0.0.1 -v ON_ERROR_STOP=1 -U "$TEST_DB_USER" -d "$TEST_DB_NAME" < "$dump_file" >/dev/null
 
           docker compose -p drlinq-marketplace-test -f "$TEST_COMPOSE" up -d --build marketplace-test-api
           for i in $(seq 1 50); do
@@ -136,11 +136,11 @@ jobs:
           fi
 
           prod_after="$(docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" "$PROD_DB_CONTAINER" \
-            psql -At -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+            psql -h 127.0.0.1 -At -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
             -c "SELECT count(*) FROM bank_providers")"
           test "$prod_before" = "$prod_after"
           prod_marketplace="$(docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" "$PROD_DB_CONTAINER" \
-            psql -At -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+            psql -h 127.0.0.1 -At -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
             -c "SELECT to_regclass('public.marketplace_requests') IS NULL")"
           test "$prod_marketplace" = 't'
 
