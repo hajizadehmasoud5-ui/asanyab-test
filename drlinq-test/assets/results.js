@@ -1,4 +1,4 @@
-import { searchProviders } from './api.js';
+import { searchProviders } from './api.js?v=1.0.1';
 import {
   buildPageUrl,
   dedupeProviders,
@@ -8,7 +8,7 @@ import {
   searchParamsFromLocation,
   toPersianNumber,
   verificationState,
-} from './core.js';
+} from './core.js?v=1.0.1';
 
 const $ = (id) => document.getElementById(id);
 const filters = searchParamsFromLocation();
