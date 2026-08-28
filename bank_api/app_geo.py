@@ -2,12 +2,8 @@ from fastapi import Query
 from fastapi.responses import Response
 
 import app as base
-from marketplace import install_marketplace
 
 app = base.app
-
-# Add the marketplace without replacing the existing provider-bank routes.
-install_marketplace(app, base.db, base.norm, base.BRAND_NAME, base.DOMAIN)
 
 
 def geography_options(province: str = "", city: str = ""):
