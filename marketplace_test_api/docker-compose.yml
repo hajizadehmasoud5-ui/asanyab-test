@@ -1,0 +1,48 @@
+services:
+  marketplace-test-postgres:
+    image: postgres:17-alpine
+    container_name: drlinq-marketplace-test-postgres
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${TEST_DB_NAME}
+      POSTGRES_USER: ${TEST_DB_USER}
+      POSTGRES_PASSWORD: ${TEST_DB_PASSWORD}
+    volumes:
+      - marketplace_test_postgres_data:/var/lib/postgresql/data
+    networks: [drlinq-internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TEST_DB_USER} -d ${TEST_DB_NAME}"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+
+  marketplace-test-api:
+    build:
+      context: ..
+      dockerfile: marketplace_test_api/Containerfile
+    container_name: drlinq-marketplace-test-api
+    restart: unless-stopped
+    depends_on:
+      marketplace-test-postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DB_HOST: marketplace-test-postgres
+      DB_PORT: 5432
+      DB_NAME: ${TEST_DB_NAME}
+      DB_USER: ${TEST_DB_USER}
+      DB_PASSWORD: ${TEST_DB_PASSWORD}
+      APP_NAME: DrLinq Marketplace Test
+      BRAND_NAME: دکترلینک
+      DOMAIN: drlinq.ir
+    networks: [drlinq-internal]
+
+volumes:
+  marketplace_test_postgres_data:
+    name: drlinq_marketplace_test_postgres_data
+
+networks:
+  drlinq-internal:
+    external: true
+    name: drlinq-internal

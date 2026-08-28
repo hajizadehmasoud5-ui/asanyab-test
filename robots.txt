@@ -11,5 +11,6 @@ Disallow: /drlinq-patient-flow-v2.html
 Disallow: /drlinq-patient-flow-v2-realimg.html
 Disallow: /drlinq-patient-flow-v2-realimg2.html
 Disallow: /skin-flow.html
+Disallow: /marketplace-test/
 
 Sitemap: https://drlinq.ir/sitemap.xml
