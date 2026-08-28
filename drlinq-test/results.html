@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>نتایج جست‌وجو | دکتر لینک</title>
+  <meta name="robots" content="noindex,follow">
+  <meta name="theme-color" content="#0a3d45">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">رفتن به نتایج</a>
+  <header class="site-header"><div class="header-inner"><a class="brand" href="./"><span class="brand-mark">+</span><span>دکتر لینک</span></a><a class="header-link" href="about-data.html">راهنمای اعتبار داده</a></div></header>
+  <main id="main" class="page-shell">
+    <div class="page-title-row">
+      <div><h1 id="pageTitle">مراکز مناسب برای جست‌وجوی شما</h1><p id="resultStatus" aria-live="polite">در حال بررسی بانک مراکز…</p></div>
+      <a id="newSearch" class="secondary-button" href="./">جست‌وجوی تازه</a>
+    </div>
+    <section class="search-summary" aria-label="فیلترهای جست‌وجو">
+      <div id="summaryChips" class="summary-chips"></div>
+      <a id="editSearch" class="text-button" href="./">ویرایش جست‌وجو</a>
+    </section>
+    <div class="content-grid">
+      <section aria-label="فهرست مراکز">
+        <div id="resultList" class="result-list">
+          <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+        </div>
+        <button id="loadMore" class="secondary-button load-more" type="button" hidden>نمایش مراکز بیشتر</button>
+      </section>
+      <aside class="results-aside">
+        <div class="side-card"><h2>این نتایج چه معنایی دارند؟</h2><p>مرکزها بر اساس خدمت، شهر و در صورت انتخاب، بیمه فیلتر شده‌اند. دکتر لینک زمان خالی یا کیفیت درمان را تضمین نمی‌کند.</p><a href="about-data.html">دربارهٔ داده‌ها</a></div>
+        <div class="side-card"><h2>قبل از مراجعه تماس بگیر</h2><p>پذیرش بیمه، ساعت کار و ارائهٔ خدمت ممکن است تغییر کند. این سه مورد را تلفنی تأیید کن.</p></div>
+      </aside>
+    </div>
+  </main>
+  <footer class="site-footer">اطلاعات بانک در حال تکمیل و بازبینی است؛ نتیجهٔ صفر به معنی نبود مرکز در شهر نیست.</footer>
+  <script src="assets/config.js"></script>
+  <script type="module" src="assets/results.js"></script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>دکتر لینک | برای درمانت جای مناسب را پیدا کن</title>
+  <meta name="description" content="خدمت موردنیازت، شهر و بیمه را مشخص کن و مراکز درمانی واقعی و دارای منبع را پیدا کن.">
+  <meta name="theme-color" content="#0a3d45">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">رفتن به محتوای اصلی</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="./" aria-label="صفحه اصلی دکتر لینک"><span class="brand-mark">+</span><span>دکتر لینک</span></a>
+      <a class="header-link" href="about-data.html">داده‌ها چطور بررسی می‌شوند؟</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero">
+      <div class="hero-inner">
+        <div class="hero-copy">
+          <div class="eyebrow">جست‌وجو در بانک واقعی مراکز درمانی</div>
+          <h1>برای درمانت، جای مناسب را پیدا کن</h1>
+          <p>لازم نیست اسم تخصص را بدانی. نیازت را ساده بنویس، شهرت را انتخاب کن و اگر خواستی بیمه‌ات را اضافه کن.</p>
+        </div>
+
+        <form id="searchForm" class="search-panel" novalidate>
+          <div class="search-grid">
+            <div class="field need-field">
+              <label for="need">چه خدمتی لازم داری؟ <span>ضروری</span></label>
+              <div class="input-shell">
+                <span class="input-icon" aria-hidden="true">✚</span>
+                <input id="need" name="need" type="text" list="serviceSuggestions" autocomplete="off" placeholder="مثلاً دندان‌درد، آزمایش خون یا فیزیوتراپی" required>
+                <datalist id="serviceSuggestions"></datalist>
+              </div>
+              <div id="needError" class="visually-hidden" role="alert"></div>
+            </div>
+
+            <div class="field">
+              <label for="province">استان <span>ضروری</span></label>
+              <div class="input-shell">
+                <span class="input-icon" aria-hidden="true">⌖</span>
+                <select id="province" name="province" required><option value="">انتخاب استان</option></select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="city">شهر <span>ضروری</span></label>
+              <div class="input-shell">
+                <span class="input-icon" aria-hidden="true">⌖</span>
+                <select id="city" name="city" disabled required><option value="">ابتدا استان را انتخاب کن</option></select>
+              </div>
+            </div>
+          </div>
+
+          <div class="insurance-row">
+            <div class="field">
+              <label for="insurer">بیمه <span>اختیاری</span></label>
+              <div class="input-shell">
+                <span class="input-icon" aria-hidden="true">▣</span>
+                <select id="insurer" name="insurer"><option value="">آزاد / بدون فیلتر بیمه</option></select>
+              </div>
+            </div>
+            <button id="submitButton" class="primary-button" type="submit">پیدا کردن مراکز <span aria-hidden="true">←</span></button>
+          </div>
+
+          <div class="popular-services" aria-label="خدمات پرکاربرد">
+            <span>پرکاربرد:</span>
+            <button class="service-chip" type="button" data-service="دندانپزشکی">دندانپزشکی</button>
+            <button class="service-chip" type="button" data-service="آزمایشگاه">آزمایشگاه</button>
+            <button class="service-chip" type="button" data-service="رادیولوژی">تصویربرداری</button>
+            <button class="service-chip" type="button" data-service="فیزیوتراپی">فیزیوتراپی</button>
+          </div>
+          <p id="formStatus" class="privacy-note" aria-live="polite">شماره تماس یا اطلاعات پزشکی از تو نمی‌گیریم؛ اول نتایج را ببین.</p>
+        </form>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="howHeading">
+      <div class="section-heading">
+        <h2 id="howHeading">سه تصمیم کوتاه، بدون فرم پزشکی پیچیده</h2>
+        <p>دکتر لینک تشخیص یا طرح درمان نمی‌دهد؛ فقط نیاز تو را به اطلاعات واقعی مراکز درمانی وصل می‌کند.</p>
+      </div>
+      <div class="value-grid">
+        <article class="value-card"><div class="value-number">۱</div><h3>نیازت را ساده بگو</h3><p>از زبان معمولی مثل «دندان‌درد» یا نام خدمت استفاده کن. سیستم آن را به دستهٔ قابل جست‌وجو تبدیل می‌کند.</p></article>
+        <article class="value-card"><div class="value-number">۲</div><h3>محل و بیمه را مشخص کن</h3><p>شهر ضروری است؛ بیمه اختیاری است. جست‌وجوی آزاد همیشه در دسترس می‌ماند.</p></article>
+        <article class="value-card"><div class="value-number">۳</div><h3>منبع را ببین و تماس بگیر</h3><p>اطلاعات موجود، وضعیت منبع و تاریخ بررسی نمایش داده می‌شود. زمان خالی یا قیمت ساختگی نشان نمی‌دهیم.</p></article>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <div class="trust-strip">
+        <div><strong>پوشش بانک در حال تکمیل است</strong><p>نبود نتیجه به معنی نبود مرکز در شهر نیست. دکتر لینک فقط رکوردهای ثبت‌شده و قابل ردیابی را نمایش می‌دهد.</p></div>
+        <a href="about-data.html">معنی وضعیت‌های تأیید را ببین ←</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">دکتر لینک یک ابزار جست‌وجوی خدمات درمانی غیر اورژانسی است و جایگزین ارزیابی پزشک نیست.</footer>
+  <script src="assets/config.js"></script>
+  <script type="module" src="assets/home.js"></script>
+</body>
+</html>
