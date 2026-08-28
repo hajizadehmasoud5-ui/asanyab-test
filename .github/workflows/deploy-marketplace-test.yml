@@ -135,6 +135,20 @@ jobs:
             fi
           fi
 
+          # The Caddyfile is bind-mounted as a file. Recreate only the proxy
+          # container so it binds the validated host file's current inode.
+          if ! curl -fsS https://n8n.drlinq.ir/marketplace-test-api/health 2>/dev/null \
+            | grep -q 'isolated-test'; then
+            docker compose -f /opt/drlinq/docker-compose.yml up -d --force-recreate caddy
+            for i in $(seq 1 30); do
+              if curl -fsS https://n8n.drlinq.ir/marketplace-test-api/health 2>/dev/null \
+                | grep -q 'isolated-test'; then
+                break
+              fi
+              sleep 2
+            done
+          fi
+
           prod_after="$(docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" "$PROD_DB_CONTAINER" \
             psql -h 127.0.0.1 -At -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
             -c "SELECT count(*) FROM bank_providers")"
@@ -144,9 +158,13 @@ jobs:
             -c "SELECT to_regclass('public.marketplace_requests') IS NULL")"
           test "$prod_marketplace" = 't'
 
-          curl -fsS https://n8n.drlinq.ir/marketplace-test-api/health
+          curl -fsS https://n8n.drlinq.ir/marketplace-test-api/health | grep 'isolated-test'
           echo
-          docker exec "$TEST_API_CONTAINER" python /app/marketplace_smoke.py --base-url http://127.0.0.1:8000
+          if ! docker exec "$TEST_API_CONTAINER" python /app/marketplace_smoke.py \
+            --base-url http://127.0.0.1:8000; then
+            docker logs --tail 200 "$TEST_API_CONTAINER"
+            exit 1
+          fi
           REMOTE
       - name: Verify HTTPS frontend and API
         run: |
