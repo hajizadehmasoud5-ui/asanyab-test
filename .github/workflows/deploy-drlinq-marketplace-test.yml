@@ -1,6 +1,12 @@
 name: Deploy DrLinq Marketplace Test
 
 on:
+  push:
+    branches: [drlinq-patient-v1-wip]
+    paths:
+      - 'drlinq-test/**'
+      - 'bank_api/**'
+      - '.github/workflows/deploy-drlinq-marketplace-test.yml'
   workflow_dispatch:
 
 concurrency:
