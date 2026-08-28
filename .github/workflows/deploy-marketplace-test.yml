@@ -169,12 +169,16 @@ jobs:
       - name: Verify HTTPS frontend and API
         run: |
           set -euo pipefail
+          page="$(mktemp)"
+          trap 'rm -f "$page"' EXIT
           for i in $(seq 1 40); do
-            if curl -fsS https://drlinq.ir/marketplace-test/ | grep -q 'درمان یا خدمت مورد نیازت را ثبت کن'; then
+            if curl -fsS https://drlinq.ir/marketplace-test/ -o "$page" \
+              && grep -q 'درمان یا خدمت مورد نیازت را ثبت کن' "$page"; then
               break
             fi
             sleep 5
           done
-          curl -fsS https://drlinq.ir/marketplace-test/ | grep -q 'درمان یا خدمت مورد نیازت را ثبت کن'
+          curl -fsS https://drlinq.ir/marketplace-test/ -o "$page"
+          grep -q 'درمان یا خدمت مورد نیازت را ثبت کن' "$page"
           curl -fsS https://n8n.drlinq.ir/marketplace-test-api/health | python3 -c \
             "import json,sys; d=json.load(sys.stdin); assert d['ok'] and d['environment']=='isolated-test' and d['production_writes'] is False"
