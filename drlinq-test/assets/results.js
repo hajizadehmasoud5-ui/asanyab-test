@@ -1,14 +1,16 @@
-import { searchProviders } from './api.js?v=1.0.1';
+import { searchProviders } from './api.js?v=1.0.2';
 import {
   buildPageUrl,
   dedupeProviders,
   escapeHtml,
   isCallablePhone,
+  insurerFilterLabel,
   phoneHref,
+  providerTypeLabel,
   searchParamsFromLocation,
   toPersianNumber,
   verificationState,
-} from './core.js?v=1.0.1';
+} from './core.js?v=1.0.2';
 
 const $ = (id) => document.getElementById(id);
 const filters = searchParamsFromLocation();
@@ -61,7 +63,7 @@ function providerCard(item) {
   const call = isCallablePhone(item.phone)
     ? `<a class="call-button" href="tel:${phoneHref(item.phone)}" aria-label="تماس با ${escapeHtml(item.name)}">تماس</a>`
     : '';
-  const matchParts = [filters.service && `خدمت ${filters.service}`, filters.city && `شهر ${filters.city}`, filters.insurer && `بیمه ${filters.insurer}`].filter(Boolean);
+  const matchParts = [filters.service && `خدمت ${filters.service}`, filters.city && `شهر ${filters.city}`, insurerFilterLabel(filters.insurer)].filter(Boolean);
   return `
     <article class="provider-card">
       <div class="provider-card-head">
@@ -69,7 +71,7 @@ function providerCard(item) {
           <h2>${escapeHtml(item.name || 'مرکز درمانی')}</h2>
           <div class="badges">
             <span class="badge ${verification.tone}">${escapeHtml(verification.label)}</span>
-            ${item.provider_type ? `<span class="badge">${escapeHtml(item.provider_type)}</span>` : ''}
+            ${item.provider_type ? `<span class="badge">${escapeHtml(providerTypeLabel(item.provider_type))}</span>` : ''}
             ${insurers.map((value) => `<span class="badge insurance">${escapeHtml(value)}</span>`).join('')}
             ${(item.insurers || []).length > 3 ? `<span class="badge">+${toPersianNumber(item.insurers.length - 3)} بیمه</span>` : ''}
           </div>

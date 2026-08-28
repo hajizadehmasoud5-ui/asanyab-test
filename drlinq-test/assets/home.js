@@ -1,5 +1,5 @@
-import { getFilters } from './api.js?v=1.0.1';
-import { SERVICE_CATALOG, buildPageUrl, resolveService, searchParamsFromLocation } from './core.js?v=1.0.1';
+import { getFilters } from './api.js?v=1.0.2';
+import { SERVICE_CATALOG, buildPageUrl, resolveService, searchParamsFromLocation } from './core.js?v=1.0.2';
 
 const $ = (id) => document.getElementById(id);
 const need = $('need');

@@ -25,7 +25,7 @@ jobs:
 
       - name: Run static and unit checks
         run: |
-          node --test drlinq-test/tests/core.test.mjs
+          node --test drlinq-test/tests/*.test.mjs
           python3 -m py_compile bank_api/app.py bank_api/app_geo.py bank_api/app_marketplace.py
           test "$(grep -RIl 'Cloudiva\|cldv.dev' drlinq-test | wc -l)" = "0"
           test -f drlinq-test/index.html

@@ -45,6 +45,17 @@ test('never marks an unsourced provider as verified', () => {
   assert.equal(core.verificationState([{ source_type: 'official' }]).key, 'official');
 });
 
+test('shows known provider types in Persian', () => {
+  assert.equal(core.providerTypeLabel('dentistry'), 'دندانپزشکی');
+  assert.equal(core.providerTypeLabel('laboratory'), 'آزمایشگاه');
+  assert.equal(core.providerTypeLabel('نوع ثبت‌شده'), 'نوع ثبت‌شده');
+});
+
+test('does not repeat the insurance prefix', () => {
+  assert.equal(core.insurerFilterLabel('بیمه البرز'), 'بیمه البرز');
+  assert.equal(core.insurerFilterLabel('البرز'), 'بیمه البرز');
+});
+
 test('creates a safe telephone link only from phone characters', () => {
   assert.equal(core.phoneHref('061-33337474'), '06133337474');
   assert.equal(core.isCallablePhone('ناموجود'), false);

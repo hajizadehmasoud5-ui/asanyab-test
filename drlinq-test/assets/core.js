@@ -181,6 +181,29 @@ export function verificationState(sources = []) {
   return { key: 'unverified', label: 'نیازمند بررسی مجدد', tone: 'muted' };
 }
 
+const PROVIDER_TYPE_LABELS = Object.freeze({
+  dentistry: 'دندانپزشکی',
+  laboratory: 'آزمایشگاه',
+  radiology: 'تصویربرداری',
+  physiotherapy: 'فیزیوتراپی',
+  pharmacy: 'داروخانه',
+  physician: 'پزشک',
+  clinic: 'درمانگاه',
+  hospital: 'بیمارستان',
+  healthcare_provider: 'مرکز درمانی',
+});
+
+export function providerTypeLabel(value = '') {
+  const type = String(value).trim();
+  return PROVIDER_TYPE_LABELS[type.toLowerCase()] || type;
+}
+
+export function insurerFilterLabel(value = '') {
+  const name = String(value).trim();
+  if (!name) return '';
+  return normalizeText(name).startsWith('بیمه ') ? name : `بیمه ${name}`;
+}
+
 export function phoneHref(phone = '') {
   const first = String(phone).split(/[،,;/]|\s+-\s+/)[0];
   const normalized = first.replace(/[^\d+]/g, '');

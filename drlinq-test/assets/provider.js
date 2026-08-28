@@ -1,14 +1,15 @@
-import { getProvider } from './api.js?v=1.0.1';
+import { getProvider } from './api.js?v=1.0.2';
 import {
   buildPageUrl,
   displayDate,
   escapeHtml,
   isCallablePhone,
   phoneHref,
+  providerTypeLabel,
   safeExternalUrl,
   searchParamsFromLocation,
   verificationState,
-} from './core.js?v=1.0.1';
+} from './core.js?v=1.0.2';
 
 const root = document.getElementById('detailRoot');
 const query = new URLSearchParams(window.location.search);
@@ -46,7 +47,7 @@ function render(data) {
   root.innerHTML = `
     <section class="detail-hero">
       <a class="back-link" href="${resultsUrl()}">→ بازگشت به نتایج</a>
-      <div class="badges"><span class="badge ${verification.tone}">${escapeHtml(verification.label)}</span>${data.provider_type ? `<span class="badge">${escapeHtml(data.provider_type)}</span>` : ''}</div>
+      <div class="badges"><span class="badge ${verification.tone}">${escapeHtml(verification.label)}</span>${data.provider_type ? `<span class="badge">${escapeHtml(providerTypeLabel(data.provider_type))}</span>` : ''}</div>
       <h1>${escapeHtml(data.name || 'مرکز درمانی')}</h1>
       <p>${escapeHtml([location.district, location.city, location.province].filter(Boolean).join('، '))}</p>
       <div class="detail-actions">
@@ -62,7 +63,7 @@ function render(data) {
           <dl class="fact-list">
             <div class="fact"><dt>آدرس</dt><dd>${escapeHtml(address)}</dd></div>
             <div class="fact"><dt>تلفن</dt><dd>${phone ? escapeHtml(phone) : 'در این رکورد ثبت نشده'}</dd></div>
-            <div class="fact"><dt>نوع مرکز</dt><dd>${escapeHtml(data.provider_type || 'در این رکورد ثبت نشده')}</dd></div>
+            <div class="fact"><dt>نوع مرکز</dt><dd>${escapeHtml(providerTypeLabel(data.provider_type) || 'در این رکورد ثبت نشده')}</dd></div>
             ${data.medical_license_no ? `<div class="fact"><dt>شماره مجوز</dt><dd>${escapeHtml(data.medical_license_no)}</dd></div>` : ''}
           </dl>
         </section>
