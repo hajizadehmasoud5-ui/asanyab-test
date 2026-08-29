@@ -37,3 +37,5 @@ REQUIRED CHANGES:
    - After editing, inspect the final HTML and ensure the page can render without JavaScript syntax errors.
 
 Return only after the file is changed and locally checked.
+
+RUN-ID: retry-2-workspace-write
