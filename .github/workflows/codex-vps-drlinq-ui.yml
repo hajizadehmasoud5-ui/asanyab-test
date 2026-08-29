@@ -56,24 +56,27 @@ jobs:
           auth_file=""
           for base in /root /home /opt /srv /data /mnt /var/lib/docker/volumes; do
             [ -d "$base" ] || continue
-            found="$(timeout 8s find "$base" -maxdepth 8 -type f -path '*/.codex/auth.json' 2>/dev/null | head -n 1 || true)"
+            found="$(timeout 6s find "$base" -maxdepth 8 -type f -path '*/.codex/auth.json' 2>/dev/null | head -n 1 || true)"
             if [ -n "$found" ]; then auth_file="$found"; break; fi
           done
+
+          cd "$work"
+          prompt_file="$work/.github/codex-tasks/drlinq-ui-task.txt"
           if [ -n "$auth_file" ]; then
             export CODEX_HOME="$(dirname "$auth_file")"
-            echo "Using existing Codex login from $CODEX_HOME"
+            echo "Using Codex auth file."
+            prompt="$(cat "$prompt_file")"
+            codex exec --sandbox workspace-write --skip-git-repo-check "$prompt"
+          elif bash -lic 'test -n "${OPENAI_API_KEY:-}"' >/dev/null 2>&1; then
+            echo "Using Codex credentials from login-shell environment."
+            export DRLINQ_CODEX_WORK="$work"
+            export DRLINQ_CODEX_PROMPT="$prompt_file"
+            bash -lic 'cd "$DRLINQ_CODEX_WORK" && codex exec --sandbox workspace-write --skip-git-repo-check "$(cat "$DRLINQ_CODEX_PROMPT")"'
           else
-            echo "No Codex auth file found in user, app, or Docker-volume paths." >&2
-            echo "Codex-like containers:" >&2
-            docker ps -a --format '{{.Names}}' 2>/dev/null | grep -i codex | head -n 10 >&2 || true
-            echo "CODEX_HOME references:" >&2
-            timeout 10s grep -Rsl 'CODEX_HOME' /etc /root /home /opt /srv /data 2>/dev/null | head -n 10 >&2 || true
+            echo "Codex is installed but no authenticated Codex session or login-shell API credential is present on this VPS." >&2
             exit 9
           fi
 
-          cd "$work"
-          prompt="$(cat .github/codex-tasks/drlinq-ui-task.txt)"
-          codex exec --sandbox workspace-write --skip-git-repo-check "$prompt"
           test -s drlinq-test/implant-intake.html
           grep -q 'فک بالا' drlinq-test/implant-intake.html
           grep -q 'فک پایین' drlinq-test/implant-intake.html
