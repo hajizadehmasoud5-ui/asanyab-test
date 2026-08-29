@@ -1,0 +1,28 @@
+name: Codex VPS Login Diagnostic
+
+on:
+  push:
+    branches: [drlinq-patient-v1-wip]
+    paths:
+      - '.github/codex-tasks/codex-login-diagnostic.txt'
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Install SSH helper
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass
+      - name: Show Codex login options
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+        run: |
+          : "${VPS_PORT:=22}"
+          mkdir -p ~/.ssh
+          ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          sshpass -e ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'codex --version; echo ===LOGIN_HELP===; codex login --help; echo ===STATUS===; codex login status || true'
