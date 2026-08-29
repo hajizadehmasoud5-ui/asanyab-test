@@ -1,0 +1,168 @@
+name: Cloudflare Connection Check
+
+on:
+  push:
+    branches:
+      - cloudflare-connect
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  verify-cloudflare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify Cloudflare API token with Wrangler
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx --yes wrangler@latest whoami
+
+      - name: Ensure DrLinq Pages project exists
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          projects="$(npx --yes wrangler@latest pages project list --json)"
+          if printf '%s' "$projects" | jq -e '.[] | select(.name == "drlinq")' >/dev/null; then
+            echo "drlinq_pages_project_exists=true"
+          else
+            echo "drlinq_pages_project_exists=false"
+            set +e
+            create_output="$(npx --yes wrangler@latest pages project create drlinq --production-branch main 2>&1)"
+            create_code=$?
+            set -e
+            if [ "$create_code" -ne 0 ]; then
+              if printf '%s' "$create_output" | grep -qi 'already exists'; then
+                echo "drlinq_pages_project_exists=true"
+              else
+                printf '%s\n' "$create_output" >&2
+                exit "$create_code"
+              fi
+            else
+              printf '%s\n' "$create_output"
+            fi
+          fi
+
+      - name: Ensure Shahmoradi specialist record
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://python-0jatcc.cldv.dev/alanoffer/api/referral'
+          SLUG='dr-shahmoradi-endodontist'
+          status="$(curl -sS -o /tmp/shahmoradi.json -w '%{http_code}' "$BASE/c/$SLUG")"
+          if [ "$status" = "404" ]; then
+            echo 'specialist_record_missing=true'
+            reg_status="$(curl -sS -o /tmp/shahmoradi-register.json -w '%{http_code}' -X POST "$BASE/specialists/register" -H 'Content-Type: application/json' --data '{"name":"دکتر محسن شاهمرادی","clinicName":"مطب دکتر محسن شاهمرادی","city":"اهواز","phone":"","slug":"dr-shahmoradi-endodontist"}')"
+            echo "specialist_registration_http_status=$reg_status"
+            case "$reg_status" in
+              200|201) ;;
+              *) echo 'specialist_registration_failed=true' >&2; exit 1 ;;
+            esac
+          elif [ "$status" != "200" ]; then
+            echo "specialist_lookup_http_status=$status" >&2
+            exit 1
+          fi
+          curl -fsS "$BASE/c/$SLUG" > /tmp/shahmoradi-final.json
+          python - <<'PY'
+          import json
+          d=json.load(open('/tmp/shahmoradi-final.json',encoding='utf-8'))
+          assert d.get('ok') is True, d
+          s=d.get('specialist') or {}
+          assert s.get('name') == 'دکتر محسن شاهمرادی', s
+          print('specialist_record_ok=true')
+          PY
+
+      - name: Build safe preview bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf cf-pages-dist
+          mkdir -p cf-pages-dist/dr.shahmoradi.endodontist
+          cp index.html robots.txt sitemap.xml referral-fast.html activate-shahmoradi.html shahmoradi-panel.html specialist-app.webmanifest specialist-icon.svg specialist-sw.js cf-pages-dist/
+          cp dr.shahmoradi.endodontist/index.html cf-pages-dist/dr.shahmoradi.endodontist/index.html
+          cp cloudflare-preview-worker.js cf-pages-dist/_worker.js
+
+      - name: Deploy DrLinq preview to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx --yes wrangler@latest pages deploy cf-pages-dist --project-name=drlinq --branch=cloudflare-connect
+
+      - name: Deploy DrLinq production bundle for preview custom domain
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx --yes wrangler@latest pages deploy cf-pages-dist --project-name=drlinq --branch=main
+
+      - name: Check DrLinq zone access
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" "https://api.cloudflare.com/client/v4/zones?name=drlinq.ir")"
+          success="$(printf '%s' "$response" | jq -r '.success // false')"
+          count="$(printf '%s' "$response" | jq -r '.result | if type=="array" then length else 0 end')"
+          echo "zone_api_success=$success"
+          echo "drlinq_zone_count=$count"
+          if [ "$success" != "true" ]; then
+            printf '%s' "$response" | jq -r '.errors[]? | "cloudflare_error_code=\(.code) message=\(.message)"'
+          fi
+
+      - name: Ensure preview.drlinq.ir custom domain
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACCOUNT_ID="071050881d9e94f9fcf18db432bc972e"
+          BASE="https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/pages/projects/drlinq/domains"
+          domains="$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" "$BASE")"
+          if printf '%s' "$domains" | jq -e '.result[]? | select(.name == "preview.drlinq.ir")' >/dev/null; then
+            echo "preview_domain_exists=true"
+            printf '%s' "$domains" | jq -r '.result[]? | select(.name == "preview.drlinq.ir") | "preview_domain_status=" + (.status // "unknown")'
+          else
+            created="$(curl -sS -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" --data '{"name":"preview.drlinq.ir"}' "$BASE")"
+            success="$(printf '%s' "$created" | jq -r '.success // false')"
+            echo "preview_domain_create_success=$success"
+            if [ "$success" != "true" ]; then
+              printf '%s' "$created" | jq -r '.errors[]? | "cloudflare_error_code=\(.code) message=\(.message)"'
+            else
+              printf '%s' "$created" | jq -r '"preview_domain_status=" + (.result.status // "unknown")'
+            fi
+          fi
+
+      - name: Check preview DNS record
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          zones="$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" "https://api.cloudflare.com/client/v4/zones?name=drlinq.ir")"
+          ZONE_ID="$(printf '%s' "$zones" | jq -r '.result[0].id // empty')"
+          if [ -z "$ZONE_ID" ]; then
+            echo "preview_dns_check=zone_not_found"
+            exit 0
+          fi
+          dns="$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?name=preview.drlinq.ir")"
+          dns_success="$(printf '%s' "$dns" | jq -r '.success // false')"
+          dns_count="$(printf '%s' "$dns" | jq -r '.result | if type=="array" then length else 0 end')"
+          echo "preview_dns_api_success=$dns_success"
+          echo "preview_dns_record_count=$dns_count"
+          if [ "$dns_success" != "true" ]; then
+            printf '%s' "$dns" | jq -r '.errors[]? | "cloudflare_dns_error_code=\(.code) message=\(.message)"'
+            exit 0
+          fi
+          if [ "$dns_count" = "0" ]; then
+            created="$(curl -sS -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" --data '{"type":"CNAME","name":"preview.drlinq.ir","content":"drlinq.pages.dev","ttl":1,"proxied":true}' "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records")"
+            create_success="$(printf '%s' "$created" | jq -r '.success // false')"
+            echo "preview_dns_create_success=$create_success"
+            if [ "$create_success" != "true" ]; then
+              printf '%s' "$created" | jq -r '.errors[]? | "cloudflare_dns_error_code=\(.code) message=\(.message)"'
+            fi
+          else
+            echo "preview_dns_record_exists=true"
+          fi
