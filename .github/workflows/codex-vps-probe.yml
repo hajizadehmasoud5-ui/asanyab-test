@@ -19,7 +19,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass
-      - name: Probe Codex installation and auth locations
+      - name: Test existing Codex session on VPS
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
@@ -31,23 +31,13 @@ jobs:
           ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
           sshpass -e ssh -o ConnectTimeout=20 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'bash -s' <<'REMOTE'
           set -u
-          echo '=== identity ==='
-          id
-          printf 'HOME=%s\n' "$HOME"
-          echo '=== codex binary ==='
-          command -v codex || true
-          codex --version 2>/dev/null || true
-          echo '=== codex config/auth paths (names only) ==='
-          for d in /root/.codex /home/*/.codex "$HOME/.codex"; do
-            if [ -d "$d" ]; then
-              echo "DIR $d"
-              find "$d" -maxdepth 2 -type f -printf '%p\n' 2>/dev/null | sed -n '1,80p'
-            fi
-          done
-          echo '=== possible codex processes ==='
-          ps -eo user,pid,args | grep -i '[c]odex' || true
-          echo '=== docker names containing codex/chatgpt/openai ==='
-          docker ps -a --format '{{.Names}}' 2>/dev/null | grep -Ei 'codex|chatgpt|openai' || true
-          echo '=== users ==='
-          awk -F: '$3>=1000 || $1=="root" {print $1 ":" $6 ":" $7}' /etc/passwd
+          echo '=== version ==='
+          codex --version
+          echo '=== login status ==='
+          codex login status || true
+          echo '=== minimal exec test ==='
+          tmp="$(mktemp -d)"
+          cd "$tmp"
+          timeout 45s codex exec --sandbox read-only --skip-git-repo-check 'Reply with exactly READY and nothing else.' || true
+          rm -rf "$tmp"
           REMOTE
