@@ -53,6 +53,16 @@ jobs:
           tar -xzf "$remote_dir/work.tgz" -C "$work"
           command -v codex
           codex --version
+
+          auth_file="$(find /root /home /opt -type f -path '*/.codex/auth.json' 2>/dev/null | head -n 1 || true)"
+          if [ -n "$auth_file" ]; then
+            export CODEX_HOME="$(dirname "$auth_file")"
+            echo "Using existing Codex login from $CODEX_HOME"
+          else
+            echo "No existing Codex auth.json found on VPS" >&2
+            exit 9
+          fi
+
           cd "$work"
           prompt="$(cat .github/codex-tasks/drlinq-ui-task.txt)"
           codex exec --sandbox workspace-write --skip-git-repo-check "$prompt"
