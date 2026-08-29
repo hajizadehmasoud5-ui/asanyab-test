@@ -54,12 +54,21 @@ jobs:
           command -v codex
           codex --version
 
-          auth_file="$(find /root /home /opt -type f -path '*/.codex/auth.json' 2>/dev/null | head -n 1 || true)"
+          auth_file="$(find / -type f -path '*/.codex/auth.json' \
+            -not -path '/proc/*' -not -path '/sys/*' -not -path '/dev/*' \
+            -not -path '/tmp/*' 2>/dev/null | head -n 1 || true)"
+          if [ -z "$auth_file" ]; then
+            auth_file="$(find / -type f -name 'auth.json' \
+              -not -path '/proc/*' -not -path '/sys/*' -not -path '/dev/*' \
+              -not -path '/tmp/*' 2>/dev/null | grep -Ei '/codex/|/.codex/' | head -n 1 || true)"
+          fi
           if [ -n "$auth_file" ]; then
             export CODEX_HOME="$(dirname "$auth_file")"
             echo "Using existing Codex login from $CODEX_HOME"
           else
-            echo "No existing Codex auth.json found on VPS" >&2
+            echo "No existing Codex auth.json found anywhere on VPS" >&2
+            echo "Known CODEX_HOME references:" >&2
+            grep -Rsl 'CODEX_HOME' /etc /root /home /opt /srv /var/lib 2>/dev/null | head -n 10 >&2 || true
             exit 9
           fi
 
