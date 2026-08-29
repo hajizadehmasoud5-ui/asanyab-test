@@ -1,0 +1,42 @@
+name: Codex VPS Device Login
+
+on:
+  push:
+    branches: [drlinq-patient-v1-wip]
+    paths:
+      - '.github/codex-tasks/codex-device-login.txt'
+
+jobs:
+  device-login:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Install SSH helper
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass
+      - name: Start Codex device login on VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+        run: |
+          : "${VPS_PORT:=22}"
+          mkdir -p ~/.ssh
+          ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          sshpass -e ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'bash -s' <<'REMOTE'
+          set -e
+          oldpid="$(cat /tmp/codex-device-login.pid 2>/dev/null || true)"
+          if [ -n "$oldpid" ]; then kill "$oldpid" 2>/dev/null || true; fi
+          rm -f /tmp/codex-device-login.log /tmp/codex-device-login.pid
+          nohup codex login --device-auth >/tmp/codex-device-login.log 2>&1 </dev/null &
+          echo $! >/tmp/codex-device-login.pid
+          for i in $(seq 1 15); do
+            if grep -Eq 'https?://|code|Code|کد' /tmp/codex-device-login.log 2>/dev/null; then break; fi
+            sleep 1
+          done
+          echo '===DEVICE_LOGIN_OUTPUT==='
+          cat /tmp/codex-device-login.log
+          echo '===END_DEVICE_LOGIN_OUTPUT==='
+          REMOTE
