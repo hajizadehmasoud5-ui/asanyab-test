@@ -55,7 +55,7 @@ jobs:
           codex --version
           cd "$work"
           prompt="$(cat .github/codex-tasks/drlinq-ui-task.txt)"
-          codex exec --full-auto --skip-git-repo-check "$prompt"
+          codex exec --sandbox workspace-write --skip-git-repo-check "$prompt"
           test -s drlinq-test/implant-intake.html
           grep -q 'فک بالا' drlinq-test/implant-intake.html
           grep -q 'فک پایین' drlinq-test/implant-intake.html
