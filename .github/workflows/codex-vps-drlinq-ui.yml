@@ -11,12 +11,12 @@ permissions:
 
 concurrency:
   group: codex-vps-drlinq-ui
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   codex-edit:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,8 +24,7 @@ jobs:
           fetch-depth: 0
 
       - name: Prepare workspace archive
-        run: |
-          tar --exclude=.git -czf /tmp/drlinq-codex-work.tgz .
+        run: tar --exclude=.git -czf /tmp/drlinq-codex-work.tgz .
 
       - name: Install SSH helper
         run: |
@@ -54,21 +53,21 @@ jobs:
           command -v codex
           codex --version
 
-          auth_file="$(find / -type f -path '*/.codex/auth.json' \
-            -not -path '/proc/*' -not -path '/sys/*' -not -path '/dev/*' \
-            -not -path '/tmp/*' 2>/dev/null | head -n 1 || true)"
-          if [ -z "$auth_file" ]; then
-            auth_file="$(find / -type f -name 'auth.json' \
-              -not -path '/proc/*' -not -path '/sys/*' -not -path '/dev/*' \
-              -not -path '/tmp/*' 2>/dev/null | grep -Ei '/codex/|/.codex/' | head -n 1 || true)"
-          fi
+          auth_file=""
+          for base in /root /home /opt /srv /data /mnt /var/lib/docker/volumes; do
+            [ -d "$base" ] || continue
+            found="$(timeout 8s find "$base" -maxdepth 8 -type f -path '*/.codex/auth.json' 2>/dev/null | head -n 1 || true)"
+            if [ -n "$found" ]; then auth_file="$found"; break; fi
+          done
           if [ -n "$auth_file" ]; then
             export CODEX_HOME="$(dirname "$auth_file")"
             echo "Using existing Codex login from $CODEX_HOME"
           else
-            echo "No existing Codex auth.json found anywhere on VPS" >&2
-            echo "Known CODEX_HOME references:" >&2
-            grep -Rsl 'CODEX_HOME' /etc /root /home /opt /srv /var/lib 2>/dev/null | head -n 10 >&2 || true
+            echo "No Codex auth file found in user, app, or Docker-volume paths." >&2
+            echo "Codex-like containers:" >&2
+            docker ps -a --format '{{.Names}}' 2>/dev/null | grep -i codex | head -n 10 >&2 || true
+            echo "CODEX_HOME references:" >&2
+            timeout 10s grep -Rsl 'CODEX_HOME' /etc /root /home /opt /srv /data 2>/dev/null | head -n 10 >&2 || true
             exit 9
           fi
 
@@ -92,13 +91,11 @@ jobs:
           node --test drlinq-test/tests/*.test.mjs
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('drlinq-test/implant-intake.html')
-          t=p.read_text(encoding='utf-8')
-          required=['فک بالا','فک پایین','انتخاب روی تصویر','18','17','16','11','21','28','48','41','31','38']
-          for x in required:
+          t=Path('drlinq-test/implant-intake.html').read_text(encoding='utf-8')
+          for x in ['فک بالا','فک پایین','انتخاب روی تصویر','18','17','16','11','21','28','48','41','31','38']:
               assert x in t, x
-          assert '<svg' in t.lower(), 'SVG dental chart missing'
-          assert 'assets/lower-real.js' in t, 'existing lower photo asset must remain'
+          assert '<svg' in t.lower()
+          assert 'assets/lower-real.js' in t
           PY
 
       - name: Commit Codex changes
