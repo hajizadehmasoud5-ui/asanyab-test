@@ -1,41 +1,79 @@
-You are editing the EXISTING DrLinq test project. Do not create a new project. Work only in this checkout and only change drlinq-test/implant-intake.html unless absolutely required.
+You are continuing the EXISTING DrLinq implant intake test on branch drlinq-patient-v1-wip. Do NOT create a new project. Work only in this checkout. Change only drlinq-test/implant-intake.html unless absolutely required.
 
-GOAL: Fix page 2 (implant location) based on the user's latest approved direction.
+CURRENT STATE:
+- The existing 7-step implant intake is working.
+- Page 2 already supports upper/lower/both jaws and the numbered FDI tooth chart. KEEP that work intact.
+- Real OPG/CBCT/intraoral sample assets already work. KEEP them intact.
 
-REQUIRED CHANGES:
-1) Jaw selection must be MULTI-SELECT, not radio/single-select.
-   - Patient can select upper jaw only, lower jaw only, or BOTH upper and lower at the same time.
-   - Each selected jaw must keep its own area selection independently: کامل / سمت راست / سمت چپ.
-   - Deselecting one jaw must not erase or change the other jaw's selection.
-   - Validation must allow both jaws and require an area for each selected jaw.
-   - Summary must correctly show both jaws when both are selected.
+GOAL:
+Improve the existing step "سؤال اصلی و تماس" so a patient who may not know how to phrase an implant question can choose from a few useful READY-MADE questions, while still being able to type their own question.
 
-2) Completely replace the current crude rounded-rectangle tooth chart on page 2.
-   - Build a lightweight inline SVG/CSS dental chart that visually resembles actual human teeth, not pills or rectangles.
-   - Use two clear dental arches/rows: upper and lower.
-   - Use standard visible numbering like the user reference:
-     upper: 18 17 16 15 14 13 12 11 | 21 22 23 24 25 26 27 28
-     lower: 48 47 46 45 44 43 42 41 | 31 32 33 34 35 36 37 38
-   - Each tooth must be independently clickable/tappable and show a very obvious green selected state.
-   - Make tooth silhouettes differ enough by region (incisor/canine/premolar/molar) to feel human/dental rather than identical boxes.
-   - Keep a simple red midline and small R/L orientation labels if helpful.
-   - Do not use an external image for the actual selector. Use SVG/vector so every tooth is clickable.
-   - Mobile-first: chart must fit/read well on phone; horizontal scrolling is acceptable only if necessary, but prefer a clean responsive fit.
+REQUIRED UX:
+1) On the existing question/contact step, above the current free-text question field, show a short section titled approximately:
+   "دوست دارید دندانپزشک به کدام سؤال پاسخ دهد؟"
+   Add one short helper line explaining that these are only suggested questions to help the patient phrase what they want to know; they are NOT a diagnosis or treatment recommendation.
 
-3) Preserve everything else:
-   - the existing 7-step intake flow
-   - green DrLinq visual language
-   - all real dental sample image assets/scripts, including lower-real.js
-   - no backend changes
-   - no production data changes
-   - no new features beyond this page-2 fix
+2) Show 3–4 tappable preset question cards/buttons. They must adapt to the patient's earlier selection.
 
-4) Stability is critical.
-   - Do not leave the page blank.
-   - Avoid fragile huge generated JS strings or malformed nested templates.
-   - Keep the code simple and valid.
-   - After editing, inspect the final HTML and ensure the page can render without JavaScript syntax errors.
+Primary adaptation by missingCount when available:
+- For "۱ دندان":
+  • "آیا ممکن است برای این ناحیه پیوند استخوان یا سینوس‌لیفت لازم باشد؟"
+  • "هزینه تقریبی ایمپلنت و روکش این دندان چقدر می‌شود؟"
+  • "درمان معمولاً چند جلسه و چه مدت طول می‌کشد؟"
+  • "آیا امکان کشیدن و گذاشتن ایمپلنت در یک جلسه وجود دارد؟"
 
-Return only after the file is changed and locally checked.
+- For "۲ تا ۳ دندان" or "چند دندان":
+  • "برای جایگزینی این دندان‌ها معمولاً چند ایمپلنت لازم است؟"
+  • "آیا ممکن است پیوند استخوان یا سینوس‌لیفت لازم باشد؟"
+  • "هزینه تقریبی کل درمان چقدر می‌شود؟"
+  • "درمان معمولاً چند جلسه و چه مدت طول می‌کشد؟"
 
-RUN-ID: retry-6-login-shell-credentials
+- For "نیم‌فک" or "فک کامل":
+  • "برای این فک چه گزینه‌هایی مثل All-on-4 یا All-on-6 قابل بررسی است؟"
+  • "آیا امکان داشتن دندان موقت در ابتدای درمان وجود دارد؟"
+  • "هزینه تقریبی درمان این فک چقدر می‌شود؟"
+  • "تا دندان موقت و دندان نهایی معمولاً چقدر زمان لازم است؟"
+
+Fallback/adaptation when missingCount is empty because another initial problem was chosen:
+- For a loose/broken/bad tooth being considered for implant, include useful questions such as whether extraction and implant can be done together, possible bone graft need, approximate cost, and treatment duration.
+- For an existing implant problem, use relevant questions such as whether the implant may be repairable/preservable, what records are useful for evaluation, approximate correction cost, and likely treatment timeline.
+- For denture replacement, favor full-arch/fixed-over-implant questions, cost, temporary teeth, and duration.
+
+IMPORTANT: The interface must only PRESENT QUESTIONS for the dentist. It must never answer them, estimate treatment, diagnose, or imply that grafting/sinus lift/All-on-4 is actually indicated.
+
+3) Interaction:
+- Patient taps ONE preset question; selected state should be obvious and green, consistent with the current DrLinq UI.
+- Tapping a preset should store that exact text in s.question and visually select it.
+- Add a clear option/button: "سؤال دیگری دارم".
+- When "سؤال دیگری دارم" is chosen, show/open the existing textarea and let the patient type freely.
+- If the user starts typing a custom question, preserve it normally in localStorage.
+- It is okay for the textarea to remain visible after a preset is selected if that is simpler and more stable, but the patient must be able to edit the selected text. Do not create a confusing duplicate question field.
+
+4) Summary:
+- Add the patient's selected/typed question to the final summary as a row labeled "سؤال بیمار".
+- If no question was entered, show "—".
+- Do not make a question mandatory; keep current name/mobile validation behavior unchanged.
+
+5) Preserve all existing behavior:
+- 7-step flow and progress
+- page 1 problem/missing-count logic
+- page 2 multi-jaw + independent area selection + numbered FDI SVG chart
+- health questions
+- OPG/CBCT upload/status
+- all 5 intraoral photo examples and uploads
+- name/mobile/city
+- consent
+- localStorage persistence
+- mobile-first layout
+- no backend change, no production data change
+
+6) Stability/quality:
+- Keep implementation simple and readable.
+- Do not blank the page.
+- Avoid fragile nested template syntax.
+- Check HTML/JavaScript syntax after editing.
+- Run the existing local tests. If appropriate, add only lightweight internal sanity checks in the HTML; do not redesign unrelated screens.
+
+Return only after drlinq-test/implant-intake.html is changed and locally checked.
+
+RUN-ID: implant-question-presets-2026-09-01
