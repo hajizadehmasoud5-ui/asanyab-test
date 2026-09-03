@@ -1,16 +1,19 @@
-name: Deploy DrLinq Marketplace Test
+name: Deploy DrLinq Isolated Test
 
 on:
   push:
     branches: [drlinq-patient-v1-wip]
     paths:
       - 'drlinq-test/**'
-      - 'bank_api/**'
+      - 'bank_api/app_implant.py'
+      - 'bank_api/implant_schema.sql'
+      - 'bank_api/Containerfile.implant-test'
+      - 'bank_api/requirements.txt'
       - '.github/workflows/deploy-drlinq-marketplace-test.yml'
   workflow_dispatch:
 
 concurrency:
-  group: drlinq-marketplace-test
+  group: drlinq-isolated-test
   cancel-in-progress: false
 
 permissions:
@@ -19,116 +22,155 @@ permissions:
 jobs:
   test-and-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
+    env:
+      TEST_BASE: https://n8n.drlinq.ir/drlinq-test
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: drlinq-test/package-lock.json
+
       - name: Run static and unit checks
         run: |
-          node --test drlinq-test/tests/*.test.mjs
-          python3 -m py_compile bank_api/app.py bank_api/app_geo.py bank_api/app_marketplace.py
-          test "$(grep -RIl 'Cloudiva\|cldv.dev' drlinq-test | wc -l)" = "0"
-          test -f drlinq-test/index.html
-          test -f drlinq-test/results.html
-          test -f drlinq-test/provider.html
-          grep -q 'max-width: 640px' drlinq-test/assets/styles.css
-          grep -q 'width=device-width' drlinq-test/index.html
+          npm ci --prefix drlinq-test
+          npm test --prefix drlinq-test
+          python -m pip install --disable-pip-version-check -q -r bank_api/requirements.txt
+          (cd bank_api && python -m unittest discover -s tests -p 'test_*.py')
+          python -m py_compile bank_api/app_implant.py
+          test -f drlinq-test/implant-intake.html
+          test -f drlinq-test/implant-doctor.html
+          grep -q 'پرونده شما ثبت شد' drlinq-test/implant-intake.html
+          grep -q 'پرونده‌های ایمپلنت' drlinq-test/implant-doctor.html
+
+      - name: Create ephemeral E2E doctor code
+        id: e2e-code
+        shell: bash
+        run: |
+          code="$(openssl rand -hex 24)"
+          hash="$(printf '%s' "$code" | sha256sum | awk '{print $1}')"
+          echo "::add-mask::$code"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "hash=$hash" >> "$GITHUB_OUTPUT"
 
       - name: Prepare deployment archive
-        run: tar -czf /tmp/drlinq-marketplace-test.tgz drlinq-test bank_api
+        run: tar -czf /tmp/drlinq-implant-test.tgz drlinq-test bank_api
 
       - name: Install SSH client helper
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass
 
-      - name: Deploy isolated test containers
+      - name: Deploy isolated Implant Intake containers
+        id: deploy
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_PORT: ${{ secrets.VPS_PORT }}
           SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+          E2E_CODE_HASH: ${{ steps.e2e-code.outputs.hash }}
         run: |
           : "${VPS_PORT:=22}"
           mkdir -p ~/.ssh
           ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          sshpass -e scp -P "$VPS_PORT" /tmp/drlinq-marketplace-test.tgz "$VPS_USER@$VPS_HOST:/tmp/drlinq-marketplace-test.tgz"
-          sshpass -e ssh -o ConnectTimeout=20 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "bash -s -- '$GITHUB_SHA'" <<'REMOTE'
+          sshpass -e scp -P "$VPS_PORT" /tmp/drlinq-implant-test.tgz "$VPS_USER@$VPS_HOST:/tmp/drlinq-implant-test.tgz"
+          sshpass -e ssh -o ConnectTimeout=20 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "bash -s -- '$GITHUB_SHA' '$E2E_CODE_HASH'" <<'REMOTE'
           set -euo pipefail
 
           release_sha="$1"
+          e2e_code_hash="$2"
           release_id="${release_sha:0:12}"
-          test_root=/opt/drlinq/marketplace-test
+          test_root=/opt/drlinq/implant-test
           release_root="$test_root/releases/$release_id"
+          data_root="$test_root/data"
+          env_file="$test_root/implant.env"
           caddy_file=/opt/drlinq/Caddyfile
           caddy_backup="$test_root/caddy/Caddyfile.$release_id.before"
-          api_name=drlinq-bank-api-test
+          api_name=drlinq-implant-api-test
           web_name=drlinq-marketplace-test
+          implant_db=drlinq_implant_test
+          implant_user=drlinq_implant_test
+          doctor_code_hash=f39124f22b990deb74aac2772b543d65d8c1ef1b38d3c5d7ec271450cbd2b57a
           backup_suffix="backup-$(date +%s)"
           api_backup="${api_name}-${backup_suffix}"
           web_backup="${web_name}-${backup_suffix}"
 
-          mkdir -p "$release_root" "$test_root/caddy"
-          tar -xzf /tmp/drlinq-marketplace-test.tgz -C "$release_root"
+          case "$release_id$e2e_code_hash" in
+            *[!A-Za-z0-9]*) echo "Unexpected release or E2E hash" >&2; exit 1 ;;
+          esac
+          mkdir -p "$release_root" "$data_root/uploads" "$test_root/caddy"
+          chmod 700 "$data_root" "$data_root/uploads"
+          tar -xzf /tmp/drlinq-implant-test.tgz -C "$release_root"
 
           live_root_hash_before="$(curl -fsSL --max-time 30 https://drlinq.ir/ | sha256sum | awk '{print $1}')"
           curl -fsSL --max-time 30 https://n8n.drlinq.ir/ >/dev/null
-
-          api_image="drlinq-bank-api-test:$release_id"
-          web_image="drlinq-marketplace-test:$release_id"
-          docker build -t "$api_image" -f "$release_root/bank_api/Containerfile.marketplace-test" "$release_root/bank_api"
-          docker build -t "$web_image" -f "$release_root/drlinq-test/Containerfile" "$release_root/drlinq-test"
 
           get_container_env() {
             docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$1" \
               | sed -n "s/^$2=//p" | head -n 1
           }
-
-          db_name="$(get_container_env drlinq-bank-api DB_NAME)"
-          db_host="$(get_container_env drlinq-bank-api DB_HOST)"
-          db_port="$(get_container_env drlinq-bank-api DB_PORT)"
           db_admin="$(get_container_env drlinq-postgres POSTGRES_USER)"
-          : "${db_host:=postgres}"
-          : "${db_port:=5432}"
+          admin_db="$(get_container_env drlinq-postgres POSTGRES_DB)"
           : "${db_admin:=postgres}"
-          test -n "$db_name"
-          case "$db_name$db_host$db_port$db_admin" in
-            *[!A-Za-z0-9_.-]*) echo "Unexpected database identifier" >&2; exit 1 ;;
+          : "${admin_db:=postgres}"
+          case "$db_admin$admin_db" in
+            *[!A-Za-z0-9_.-]*) echo "Unexpected PostgreSQL identifier" >&2; exit 1 ;;
           esac
 
-          ro_password="$(openssl rand -hex 24)"
-          docker exec -i drlinq-postgres psql -v ON_ERROR_STOP=1 -U "$db_admin" -d "$db_name" <<'SQL'
-          DO $$
-          BEGIN
-            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='drlinq_marketplace_ro') THEN
-              CREATE ROLE drlinq_marketplace_ro LOGIN;
-            END IF;
-          END
-          $$;
-          ALTER ROLE drlinq_marketplace_ro NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION;
-          ALTER ROLE drlinq_marketplace_ro SET default_transaction_read_only=on;
-          REVOKE CREATE ON SCHEMA public FROM drlinq_marketplace_ro;
-          GRANT USAGE ON SCHEMA public TO drlinq_marketplace_ro;
-          REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM drlinq_marketplace_ro;
-          GRANT SELECT ON ALL TABLES IN SCHEMA public TO drlinq_marketplace_ro;
-          REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM drlinq_marketplace_ro;
-          SQL
-          docker exec drlinq-postgres psql -v ON_ERROR_STOP=1 -U "$db_admin" -d "$db_name" \
-            -c "ALTER ROLE drlinq_marketplace_ro PASSWORD '$ro_password';" >/dev/null
-
-          ro_env="$test_root/bank-read-only.env"
+          db_password=""
+          session_secret=""
+          if [ -f "$env_file" ]; then
+            db_password="$(sed -n 's/^DB_PASSWORD=//p' "$env_file" | head -n 1)"
+            session_secret="$(sed -n 's/^DOCTOR_SESSION_SECRET=//p' "$env_file" | head -n 1)"
+          fi
+          : "${db_password:=$(openssl rand -hex 32)}"
+          : "${session_secret:=$(openssl rand -hex 48)}"
+          case "$db_password$session_secret" in
+            *[!A-Fa-f0-9]*) echo "Unexpected generated credential" >&2; exit 1 ;;
+          esac
           umask 077
           {
-            printf 'DB_HOST=%s\n' "$db_host"
-            printf 'DB_PORT=%s\n' "$db_port"
-            printf 'DB_NAME=%s\n' "$db_name"
-            printf 'DB_USER=drlinq_marketplace_ro\n'
-            printf 'DB_PASSWORD=%s\n' "$ro_password"
-            printf 'SKIP_SCHEMA_INIT=1\n'
-            printf 'DB_READ_ONLY=1\n'
+            printf 'DB_HOST=postgres\n'
+            printf 'DB_PORT=5432\n'
+            printf 'DB_NAME=%s\n' "$implant_db"
+            printf 'DB_USER=%s\n' "$implant_user"
+            printf 'DB_PASSWORD=%s\n' "$db_password"
+            printf 'IMPLANT_UPLOAD_ROOT=/data/uploads\n'
+            printf 'DOCTOR_SESSION_SECRET=%s\n' "$session_secret"
+            printf 'DOCTOR_LOGIN_CODE_HASH=%s\n' "$doctor_code_hash"
+            printf 'E2E_DOCTOR_LOGIN_CODE_HASH=%s\n' "$e2e_code_hash"
             printf 'PYTHONDONTWRITEBYTECODE=1\n'
-          } > "$ro_env"
-          chmod 600 "$ro_env"
+          } > "$env_file"
+          chmod 600 "$env_file"
+
+          docker exec -i drlinq-postgres psql -v ON_ERROR_STOP=1 -U "$db_admin" -d "$admin_db" <<SQL
+          DO \$\$
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='$implant_user') THEN
+              CREATE ROLE $implant_user LOGIN;
+            END IF;
+          END
+          \$\$;
+          ALTER ROLE $implant_user NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION;
+          ALTER ROLE $implant_user PASSWORD '$db_password';
+          SQL
+          if [ "$(docker exec drlinq-postgres psql -U "$db_admin" -d "$admin_db" -tAc "SELECT 1 FROM pg_database WHERE datname='$implant_db'")" != "1" ]; then
+            docker exec drlinq-postgres createdb -U "$db_admin" -O "$implant_user" "$implant_db"
+          fi
+          docker exec drlinq-postgres psql -v ON_ERROR_STOP=1 -U "$db_admin" -d "$admin_db" \
+            -c "REVOKE CONNECT ON DATABASE $implant_db FROM PUBLIC; GRANT CONNECT ON DATABASE $implant_db TO $implant_user;" >/dev/null
+
+          api_image="drlinq-implant-api-test:$release_id"
+          web_image="drlinq-marketplace-test:$release_id"
+          docker build -t "$api_image" -f "$release_root/bank_api/Containerfile.implant-test" "$release_root/bank_api"
+          docker build -t "$web_image" -f "$release_root/drlinq-test/Containerfile" "$release_root/drlinq-test"
 
           had_api=0
           had_web=0
@@ -156,8 +198,9 @@ jobs:
           fi
 
           docker run -d --name "$api_name" --restart unless-stopped \
-            --network drlinq-internal --env-file "$ro_env" \
+            --network drlinq-internal --env-file "$env_file" \
             --read-only --tmpfs /tmp:rw,noexec,nosuid,size=32m \
+            --mount "type=bind,src=$data_root,dst=/data" \
             --security-opt no-new-privileges --cap-drop ALL \
             "$api_image" >/dev/null
           docker run -d --name "$web_name" --restart unless-stopped \
@@ -165,16 +208,14 @@ jobs:
             --security-opt no-new-privileges \
             "$web_image" >/dev/null
 
-          for attempt in $(seq 1 30); do
+          for attempt in $(seq 1 45); do
             if docker exec "$api_name" python -c \
-              "import requests; d=requests.get('http://127.0.0.1:8000/health',timeout=3).json(); assert d['ok'] and d['read_only']" \
+              "import requests; d=requests.get('http://127.0.0.1:8000/health',timeout=3).json(); assert d['ok'] and d['persistent']" \
               >/dev/null 2>&1; then break; fi
             sleep 2
           done
           docker exec "$api_name" python -c \
-            "import requests; d=requests.get('http://127.0.0.1:8000/health',timeout=5).json(); assert d['ok'] and d['read_only']"
-          docker exec "$api_name" python -c \
-            "import requests; r=requests.get('http://127.0.0.1:8000/marketplace/meta',timeout=15); r.raise_for_status(); assert r.json()['counts']['providers']>0"
+            "import requests; d=requests.get('http://127.0.0.1:8000/health',timeout=5).json(); assert d['ok'] and d['persistent']"
           docker exec "$web_name" wget -qO- http://127.0.0.1/health.json >/dev/null
 
           cp "$caddy_file" "$caddy_backup"
@@ -187,6 +228,12 @@ jobs:
           text = path.read_text(encoding="utf-8")
           begin = "# BEGIN DRLINQ MARKETPLACE TEST"
           block = """  # BEGIN DRLINQ MARKETPLACE TEST
+            handle_path /drlinq-test/implant-api/* {
+              request_body {
+                max_size 55MB
+              }
+              reverse_proxy drlinq-implant-api-test:8000
+            }
             handle_path /drlinq-test/api/* {
               reverse_proxy drlinq-bank-api-test:8000
             }
@@ -217,9 +264,10 @@ jobs:
           ok=0
           for attempt in $(seq 1 30); do
             if curl -fsS --max-time 15 https://n8n.drlinq.ir/drlinq-test/health.json >/dev/null \
-              && curl -fsS --max-time 15 https://n8n.drlinq.ir/drlinq-test/api/health \
-                | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['ok'] and d['read_only']" \
-              && curl -fsS --max-time 15 https://n8n.drlinq.ir/drlinq-test/api/marketplace/meta >/dev/null; then
+              && curl -fsS --max-time 15 https://n8n.drlinq.ir/drlinq-test/implant-api/health \
+                | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['ok'] and d['persistent']" \
+              && curl -fsS --max-time 15 https://n8n.drlinq.ir/drlinq-test/implant-intake.html | grep -q 'پرونده شما ثبت شد' \
+              && curl -fsS --max-time 15 https://n8n.drlinq.ir/drlinq-test/implant-doctor.html | grep -q 'پرونده‌های ایمپلنت'; then
               ok=1
               break
             fi
@@ -235,59 +283,73 @@ jobs:
           if [ "$had_web" = 1 ]; then docker rm -f "$web_backup" >/dev/null; fi
           REMOTE
 
-      - name: Verify public patient scenarios
+      - name: Install Chromium for browser E2E
+        run: (cd drlinq-test && npx playwright install --with-deps chromium)
+
+      - name: Run mobile patient to desktop doctor E2E
+        id: browser-e2e
+        env:
+          DRLINQ_TEST_BASE: ${{ env.TEST_BASE }}
+          DRLINQ_E2E_DOCTOR_CODE: ${{ steps.e2e-code.outputs.code }}
         run: |
-          python3 - <<'PY'
-          import json
-          from urllib.parse import urlencode
-          from urllib.request import Request, urlopen
+          result="$(node drlinq-test/tests/implant-e2e.mjs)"
+          echo "$result"
+          case_id="$(printf '%s\n' "$result" | tail -n 1 | python -c 'import json,sys; print(json.load(sys.stdin)["case_id"])')"
+          echo "case_id=$case_id" >> "$GITHUB_OUTPUT"
 
-          base = "https://n8n.drlinq.ir/drlinq-test"
+      - name: Remove ephemeral login and verify restart persistence
+        if: always() && steps.deploy.outcome == 'success'
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+          CASE_ID: ${{ steps.browser-e2e.outputs.case_id }}
+        run: |
+          : "${VPS_PORT:=22}"
+          sshpass -e ssh -o ConnectTimeout=20 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "bash -s -- '$CASE_ID'" <<'REMOTE'
+          set -euo pipefail
+          env_file=/opt/drlinq/implant-test/implant.env
+          data_root=/opt/drlinq/implant-test/data
+          sed -i '/^E2E_DOCTOR_LOGIN_CODE_HASH=/d' "$env_file"
+          api_image="$(docker inspect -f '{{.Config.Image}}' drlinq-implant-api-test)"
+          docker rm -f drlinq-implant-api-test >/dev/null
+          docker run -d --name drlinq-implant-api-test --restart unless-stopped \
+            --network drlinq-internal --env-file "$env_file" \
+            --read-only --tmpfs /tmp:rw,noexec,nosuid,size=32m \
+            --mount "type=bind,src=$data_root,dst=/data" \
+            --security-opt no-new-privileges --cap-drop ALL \
+            "$api_image" >/dev/null
+          for attempt in $(seq 1 30); do
+            if docker exec drlinq-implant-api-test python -c \
+              "import requests; assert requests.get('http://127.0.0.1:8000/health',timeout=3).json()['ok']" \
+              >/dev/null 2>&1; then break; fi
+            sleep 2
+          done
+          docker exec drlinq-implant-api-test python -c \
+            "import requests; assert requests.get('http://127.0.0.1:8000/health',timeout=5).json()['ok']"
+          if [ -n "$1" ]; then
+            docker exec -i drlinq-implant-api-test python - "$1" <<'PY'
+          import os
+          import sys
+          import psycopg
 
-          def get_json(path, params=None):
-              url = f"{base}{path}"
-              if params:
-                  url += "?" + urlencode(params)
-              request = Request(url, headers={
-                  "Accept": "application/json",
-                  "User-Agent": "Mozilla/5.0 (compatible; DrLinq-Test-Verifier/1.0)",
-              })
-              with urlopen(request, timeout=30) as response:
-                  return json.load(response)
-
-          health = get_json("/api/health")
-          assert health["ok"] is True and health["read_only"] is True
-
-          filters = get_json("/api/filters")
-          assert "خوزستان" in filters["provinces"]
-          cities = get_json("/api/filters", {"province": "خوزستان"})
-          assert "اهواز" in cities["cities"]
-
-          free = get_json("/api/marketplace/providers", {
-              "service": "دندانپزشکی", "province": "خوزستان", "city": "اهواز", "limit": 5,
-          })
-          assert free["total"] > 0 and free["items"]
-
-          insured = get_json("/api/marketplace/providers", {
-              "service": "آزمایشگاه", "province": "خوزستان", "city": "اهواز",
-              "insurer": "بیمه البرز", "limit": 5,
-          })
-          assert insured["total"] > 0 and insured["items"]
-          assert all("بیمه البرز" in item["insurers"] for item in insured["items"])
-
-          first = insured["items"][0]
-          detail = get_json(
-              f"/api/marketplace/providers/{first['id']}",
-              {"location_id": first["location_id"]},
-          )
-          assert detail["id"] == first["id"] and detail["locations"]
-
-          empty = get_json("/api/marketplace/providers", {
-              "service": "خدمت-غیرواقعی-برای-تست", "province": "خوزستان", "city": "اهواز",
-          })
-          assert empty["total"] == 0 and empty["items"] == []
+          case_id = sys.argv[1]
+          dsn = " ".join([
+              f"host={os.environ['DB_HOST']}", f"port={os.environ['DB_PORT']}",
+              f"dbname={os.environ['DB_NAME']}", f"user={os.environ['DB_USER']}",
+              f"password={os.environ['DB_PASSWORD']}",
+          ])
+          with psycopg.connect(dsn) as conn:
+              row = conn.execute(
+                  """SELECT c.status, c.doctor_note,
+                            (SELECT count(*) FROM implant_case_files f WHERE f.case_id=c.id) AS file_count
+                     FROM implant_cases c WHERE c.case_code=%s""",
+                  (case_id,),
+              ).fetchone()
+          assert row and row[0] == "ready_for_consult" and row[1].startswith("یادداشت تست پایدار")
+          assert row[2] == 2
+          print(f"restart persistence: PASS ({case_id})")
           PY
-
-          curl -fsS --max-time 30 https://n8n.drlinq.ir/drlinq-test/ | grep -q 'برای درمانت، جای مناسب را پیدا کن'
-          curl -fsS --max-time 30 https://n8n.drlinq.ir/drlinq-test/results.html | grep -q 'فهرست مراکز'
-          curl -fsS --max-time 30 https://n8n.drlinq.ir/drlinq-test/provider.html | grep -q 'detailRoot'
+          fi
+          REMOTE

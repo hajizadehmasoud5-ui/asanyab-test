@@ -83,6 +83,7 @@ button,input,textarea{font:inherit}
 .custom-question-toggle{width:100%;min-height:52px;margin-top:13px;border:1.5px dashed #78bca4;border-radius:15px;background:#f8fcfa;color:var(--gd);font-size:14px;font-weight:850;cursor:pointer}
 .custom-question-box{margin-top:4px}
 .done{margin-bottom:13px;border:1px solid var(--gl);border-radius:18px;background:#edf9f5;color:#236b55;padding:15px;font-size:16px;font-weight:850}
+.done strong{display:block;font-size:21px;margin-bottom:6px}.case-id{display:inline-block;direction:ltr;margin-top:8px;padding:7px 10px;border-radius:10px;background:#fff;border:1px solid var(--gl);font-weight:950}.submit-error{margin-top:13px;border:1px solid #efc3bf;border-radius:14px;background:#fff4f2;color:#a52a20;padding:12px;font-size:13px;line-height:1.8}.new-case{width:100%;margin-top:14px}
 .summary{padding:15px 16px}
 .sumrow{display:grid;grid-template-columns:112px 1fr;gap:9px;padding:11px 0;border-bottom:1px solid #eef1f0;font-size:14px;line-height:1.8}
 .consent{display:flex;gap:9px;align-items:flex-start;margin-top:15px;font-size:14px;line-height:1.85}
@@ -115,9 +116,10 @@ button,input,textarea{font:inherit}
 <script>
 (()=>{
 'use strict';
-const $=id=>document.getElementById(id),root=$('root'),stepEl=$('step'),bar=$('bar'),next=$('next'),back=$('back'),KEY='drlinq_implant_pilot_v5';
+const $=id=>document.getElementById(id),root=$('root'),stepEl=$('step'),bar=$('bar'),next=$('next'),back=$('back'),KEY='drlinq_implant_pilot_v5',API='implant-api';
 const IMG={opg:window.DR_OPG,cbct:window.DR_CBCT,front:window.DR_FRONT,upper:window.DR_UPPER,lower:window.DR_LOWER,right:window.DR_RIGHT,left:window.DR_LEFT};
-const fresh={problem:'',missingCount:'',jaws:[],jawParts:{upper:'',lower:''},teeth:[],medical:{},diseaseText:'',medText:'',records:{opg:'',cbct:''},photos:{front:'',upper:'',lower:'',right:'',left:''},suggestedQuestions:[],questionContext:'',customQuestionOpen:false,question:'',name:'',mobile:'',city:'اهواز',consent:false};
+const newId=()=>{if(crypto.randomUUID)return crypto.randomUUID();const bytes=crypto.getRandomValues(new Uint8Array(16));bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;const hex=[...bytes].map(value=>value.toString(16).padStart(2,'0')).join('');return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`};
+const fresh={submissionKey:newId(),completedCaseId:'',problem:'',missingCount:'',jaws:[],jawParts:{upper:'',lower:''},teeth:[],medical:{},diseaseText:'',medText:'',records:{opg:'',cbct:''},photos:{front:'',upper:'',lower:'',right:'',left:''},suggestedQuestions:[],questionContext:'',customQuestionOpen:false,question:'',name:'',mobile:'',city:'اهواز',consent:false};
 let s=Object.assign({},fresh,JSON.parse(localStorage.getItem(KEY)||'{}'));
 s.jaws=Array.isArray(s.jaws)?s.jaws:[];
 s.jawParts=Object.assign({},fresh.jawParts,s.jawParts||{});
@@ -127,7 +129,10 @@ s.records=Object.assign({},fresh.records,s.records||{});
 s.photos=Object.assign({},fresh.photos,s.photos||{});
 s.suggestedQuestions=Array.isArray(s.suggestedQuestions)?s.suggestedQuestions:[];
 s.customQuestionOpen=Boolean(s.customQuestionOpen||s.question);
-let n=0;
+if(!s.submissionKey)s.submissionKey=newId();
+const selectedFiles={};
+for(const group of [s.records,s.photos])for(const key of Object.keys(group))if(String(group[key]).startsWith('فایل انتخاب شد')||String(group[key]).startsWith('عکس انتخاب شد'))group[key]='فایل را دوباره انتخاب کنید';
+let n=s.completedCaseId?6:0,submitError='',submitting=false;
 const steps=[
 ['برای چه مشکلی می‌خواهید ایمپلنت انجام دهید؟','گزینه‌ای را انتخاب کنید که دقیق‌تر شبیه وضعیت شماست.'],
 ['محل مشکل کجاست؟','فک بالا، فک پایین یا هر دو را انتخاب کنید؛ اگر دندان دقیق را می‌دانید روی چارت هم علامت بزنید.'],
@@ -180,7 +185,7 @@ function esc(v){return String(v||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&l
 function choice(v,cur,key,extra=''){return `<button class="choice ${extra} ${cur===v?'on':''}" ${key}="${esc(v)}">${esc(v)}</button>`}
 function multiChoice(v,on,key,label,extra='multi'){return `<button class="choice ${extra} ${on?'on':''}" ${key}="${esc(v)}">${esc(label)}</button>`}
 function intro(){return `<div class="intro"><h1>${steps[n][0]}</h1><p>${steps[n][1]}</p></div>`}
-function render(){stepEl.textContent=`مرحله ${n+1} از ${steps.length}`;bar.style.width=((n+1)/steps.length*100)+'%';back.classList.toggle('hidden',n===0);next.textContent=n===6?'پایان':'ادامه';root.innerHTML=`<section>${intro()}${[screenProblem,screenLocation,screenHealth,screenRecords,screenPhotos,screenContact,screenSummary][n]()}</section>`;bind()}
+function render(){const complete=Boolean(s.completedCaseId);stepEl.textContent=`مرحله ${n+1} از ${steps.length}`;bar.style.width=((n+1)/steps.length*100)+'%';back.classList.toggle('hidden',n===0||complete);next.classList.toggle('hidden',complete);next.disabled=submitting;next.textContent=submitting?'در حال ثبت…':n===6?'ثبت پرونده':'ادامه';root.innerHTML=`<section>${intro()}${[screenProblem,screenLocation,screenHealth,screenRecords,screenPhotos,screenContact,screenSummary][n]()}</section>`;bind()}
 function screenProblem(){return `<div class="card"><div class="choices">${problems.map(v=>choice(v,s.problem,'data-problem')).join('')}</div>${s.problem===problems[0]?`<label class="label">تقریباً چند دندان؟</label><div class="subchoices">${counts.map(v=>choice(v,s.missingCount,'data-count')).join('')}</div>`:''}</div>`}
 
 function toothPath(num){
@@ -222,9 +227,9 @@ function screenLocation(){
 }
 
 function screenHealth(){return `<div class="card"><div class="healthgrid">${medical.map(([k,t])=>`<button class="choice ${s.medical[k]?'on':''}" data-med="${k}">${t}</button>`).join('')}</div><label class="label">نام بیماری یا توضیح کوتاه</label><textarea id="diseaseText" class="text" placeholder="مثلاً دیابت دارم...">${esc(s.diseaseText)}</textarea><label class="label">نام داروهایی که مصرف می‌کنید</label><textarea id="medText" class="text" placeholder="مثلاً متفورمین، آسپرین...">${esc(s.medText)}</textarea></div>`}
-function evidence(k,title,desc){const st=s.records[k]||'';return `<div class="upload-row"><div class="samplebox"><img src="${IMG[k]}" alt="نمونه واقعی ${title}"></div><div class="uploadside"><b>${title}</b><p>${desc}</p><label class="uploadbtn" for="file-${k}">آپلود تصویر</label><input class="fileinput" id="file-${k}" type="file" accept="image/*,.pdf" data-record-file="${k}"><div class="statusopts"><button class="mini ${st==='ندارم'?'on':''}" data-record-status="${k}|ندارم">ندارم</button><button class="mini ${st==='الان در دسترسم نیست'?'on':''}" data-record-status="${k}|الان در دسترسم نیست">الان در دسترسم نیست</button></div>${st?`<div class="statusline">${esc(st)}</div>`:''}</div></div>`}
+function evidence(k,title,desc){const st=s.records[k]||'';return `<div class="upload-row"><div class="samplebox"><img src="${IMG[k]}" alt="نمونه واقعی ${title}"></div><div class="uploadside"><b>${title}</b><p>${desc}</p><label class="uploadbtn" for="file-${k}">آپلود تصویر</label><input class="fileinput" id="file-${k}" type="file" accept="image/jpeg,image/png,image/webp,.pdf" data-record-file="${k}"><div class="statusopts"><button class="mini ${st==='ندارم'?'on':''}" data-record-status="${k}|ندارم">ندارم</button><button class="mini ${st==='الان در دسترسم نیست'?'on':''}" data-record-status="${k}|الان در دسترسم نیست">الان در دسترسم نیست</button></div>${st?`<div class="statusline">${esc(st)}</div>`:''}</div></div>`}
 function screenRecords(){return `<div class="notice"><b>این تصاویر اجباری نیستند.</b><br>اگر دارید ارسال کنید؛ اگر ندارید بدون مشکل ادامه دهید.</div>${evidence('opg','OPG (عکس پانورامیک)','نمونه واقعی عکس پانورامیک.')}${evidence('cbct','CBCT (عکس سه‌بعدی)','اگر قبلاً گرفته‌اید، ارسال کنید.')}`}
-function photoRow(k,title){const st=s.photos[k]||'';return `<div class="upload-row"><div class="samplebox"><img src="${IMG[k]}" alt="نمونه واقعی ${title}"></div><div class="uploadside"><b>${title}</b><p>عکس شما تا حد امکان شبیه نمونه واقعی باشد.</p><label class="uploadbtn" for="camera-${k}">عکس بگیر</label><input class="fileinput" id="camera-${k}" type="file" accept="image/*" capture="environment" data-photo-file="${k}"><label class="uploadbtn secondary" for="gallery-${k}">انتخاب از گوشی</label><input class="fileinput" id="gallery-${k}" type="file" accept="image/*" data-photo-file="${k}"><button class="mini ${st==='الان نمی‌توانم'?'on':''}" data-photo-skip="${k}">الان نمی‌توانم</button>${st?`<div class="statusline">${esc(st)}</div>`:''}</div></div>`}
+function photoRow(k,title){const st=s.photos[k]||'';return `<div class="upload-row"><div class="samplebox"><img src="${IMG[k]}" alt="نمونه واقعی ${title}"></div><div class="uploadside"><b>${title}</b><p>عکس شما تا حد امکان شبیه نمونه واقعی باشد.</p><label class="uploadbtn" for="camera-${k}">عکس بگیر</label><input class="fileinput" id="camera-${k}" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" data-photo-file="${k}"><label class="uploadbtn secondary" for="gallery-${k}">انتخاب از گوشی</label><input class="fileinput" id="gallery-${k}" type="file" accept="image/jpeg,image/png,image/webp" data-photo-file="${k}"><button class="mini ${st==='الان نمی‌توانم'?'on':''}" data-photo-skip="${k}">الان نمی‌توانم</button>${st?`<div class="statusline">${esc(st)}</div>`:''}</div></div>`}
 function screenPhotos(){return `<div class="notice"><b>برای پاسخ دقیق‌تر، این ۵ زاویه کمک زیادی می‌کنند.</b><br>نمونه‌های زیر همان عکس‌های واقعی آماده‌شده هستند.</div>${photoRow('front','۱. روبه‌رو')}${photoRow('upper','۲. فک بالا')}${photoRow('lower','۳. فک پایین')}${photoRow('right','۴. سمت راست بیمار')}${photoRow('left','۵. سمت چپ بیمار')}`}
 function questionContextKey(){
   if(s.problem===problems[4])return 'existing';
@@ -248,7 +253,7 @@ function screenContact(){
   return `<div class="card"><div class="question-guide"><b>براساس وضعیت شما، معمولاً این سؤال‌ها مهم‌اند.</b><p>حداکثر دو مورد را انتخاب کنید. پاسخ نهایی پس از بررسی مدارک و معاینه مشخص می‌شود.</p></div><div class="question-options">${suggestions.map(q=>`<button type="button" class="question-option ${s.suggestedQuestions.includes(q)?'on':''}" data-suggested-question="${esc(q)}">${esc(q)}</button>`).join('')}</div><div class="question-limit">${s.suggestedQuestions.length} از ۲ سؤال انتخاب شده</div><button type="button" class="custom-question-toggle" data-custom-question>${s.customQuestionOpen?'بستن سؤال شخصی':'سؤال دیگری دارم'}</button>${s.customQuestionOpen?`<div class="custom-question-box"><label class="label">سؤال خودتان را بنویسید</label><textarea id="question" class="text" placeholder="مثلاً درباره شرایط خاص خودتان بپرسید...">${esc(s.question)}</textarea></div>`:''}<label class="label">نام و نام خانوادگی</label><input id="name" class="input" value="${esc(s.name)}"><label class="label">شماره موبایل</label><input id="mobile" class="input" inputmode="tel" value="${esc(s.mobile)}"><label class="label">شهر</label><input id="city" class="input" value="${esc(s.city)}"></div>`
 }
 function selectedMedical(){const a=medical.filter(([k])=>s.medical[k]).map(([,t])=>t);return a.length?a.join('، '):'موردی انتخاب نشده'}
-function fileCount(o){return Object.values(o).filter(v=>v&&v!=='الان نمی‌توانم').length}
+function fileCount(group){return Object.keys(selectedFiles).filter(key=>(group===s.records?['opg','cbct']:['front','upper','lower','right','left']).includes(key)).length}
 function locationSummary(){
   const parts=[];
   if(s.jaws.includes('upper')) parts.push(`فک بالا${s.jawParts.upper?' · '+s.jawParts.upper:''}`);
@@ -261,7 +266,7 @@ function questionsSummary(){
   if(s.question.trim())items.push(`• ${esc(s.question.trim())}`);
   return items.length?items.join('<br>'):'سؤالی ثبت نشده';
 }
-function screenSummary(){return `<div class="done">پرونده اولیه آماده مرور است.</div><div class="card summary"><div class="sumrow"><b>دلیل مراجعه</b><span>${esc(s.problem)}${s.missingCount?' · '+esc(s.missingCount):''}</span></div><div class="sumrow"><b>محل</b><span>${esc(locationSummary())}</span></div><div class="sumrow"><b>سلامتی</b><span>${esc(selectedMedical())}</span></div><div class="sumrow"><b>رادیوگرافی</b><span>OPG: ${esc(s.records.opg||'ثبت نشده')}<br>CBCT: ${esc(s.records.cbct||'ثبت نشده')}</span></div><div class="sumrow"><b>عکس‌های داخل دهان</b><span>${fileCount(s.photos)} مورد ثبت شده</span></div><div class="sumrow"><b>سؤال‌های بیمار</b><span>${questionsSummary()}</span></div><div class="sumrow"><b>تماس</b><span>${esc(s.name||'—')} · ${esc(s.mobile||'—')}</span></div></div><label class="consent"><input id="consent" type="checkbox" ${s.consent?'checked':''}><span>اجازه می‌دهم این اطلاعات برای بررسی اولیه در اختیار دندانپزشک قرار گیرد.</span></label><div class="notice">نسخه آزمایشی: فعلاً اطلاعات واقعاً برای پزشک ارسال نمی‌شود.</div>`}
+function screenSummary(){if(s.completedCaseId)return `<div class="done"><strong>پرونده شما ثبت شد</strong>اطلاعات و تصاویر شما برای پزشک ارسال شد.<br><span class="case-id" data-case-id>${esc(s.completedCaseId)}</span></div><div class="notice">این شناسه را برای پیگیری پرونده نگه دارید.</div><button type="button" class="btn secondary new-case" data-new-case>ثبت پرونده جدید</button>`;return `<div class="done">پرونده اولیه آماده مرور است.</div><div class="card summary"><div class="sumrow"><b>دلیل مراجعه</b><span>${esc(s.problem)}${s.missingCount?' · '+esc(s.missingCount):''}</span></div><div class="sumrow"><b>محل</b><span>${esc(locationSummary())}</span></div><div class="sumrow"><b>سلامتی</b><span>${esc(selectedMedical())}</span></div><div class="sumrow"><b>رادیوگرافی</b><span>OPG: ${esc(s.records.opg||'ارسال نشده')}<br>CBCT: ${esc(s.records.cbct||'ارسال نشده')}</span></div><div class="sumrow"><b>عکس‌های داخل دهان</b><span>${fileCount(s.photos)} مورد ثبت شده</span></div><div class="sumrow"><b>سؤال‌های بیمار</b><span>${questionsSummary()}</span></div><div class="sumrow"><b>تماس</b><span>${esc(s.name||'—')} · ${esc(s.mobile||'—')}</span></div></div><label class="consent"><input id="consent" type="checkbox" ${s.consent?'checked':''}><span>اجازه می‌دهم این اطلاعات برای بررسی اولیه در اختیار دندانپزشک قرار گیرد.</span></label>${submitError?`<div class="submit-error">${esc(submitError)}</div>`:''}`}
 
 function bind(){
   document.querySelectorAll('[data-problem]').forEach(b=>b.onclick=()=>{s.problem=b.dataset.problem;if(s.problem!==problems[0])s.missingCount='';s.questionContext='';s.suggestedQuestions=[];save();render()});
@@ -293,22 +298,42 @@ function bind(){
   const custom=document.querySelector('[data-custom-question]');
   if(custom)custom.onclick=()=>{s.customQuestionOpen=!s.customQuestionOpen;save();render()};
   ['diseaseText','medText','question','name','mobile','city'].forEach(id=>{const x=$(id);if(x)x.oninput=()=>{s[id]=x.value;save()}});
-  document.querySelectorAll('[data-record-file]').forEach(i=>i.onchange=e=>{if(e.target.files[0]){s.records[i.dataset.recordFile]='فایل انتخاب شد';save();render()}});
-  document.querySelectorAll('[data-record-status]').forEach(b=>b.onclick=()=>{const[k,v]=b.dataset.recordStatus.split('|');s.records[k]=v;save();render()});
-  document.querySelectorAll('[data-photo-file]').forEach(i=>i.onchange=e=>{if(e.target.files[0]){s.photos[i.dataset.photoFile]='عکس انتخاب شد';save();render()}});
-  document.querySelectorAll('[data-photo-skip]').forEach(b=>b.onclick=()=>{s.photos[b.dataset.photoSkip]='الان نمی‌توانم';save();render()});
+  document.querySelectorAll('[data-record-file]').forEach(i=>i.onchange=e=>{const file=e.target.files[0],key=i.dataset.recordFile;if(file&&acceptFile(file,true)){selectedFiles[key]=file;s.records[key]=`فایل انتخاب شد: ${file.name}`;save();render()}});
+  document.querySelectorAll('[data-record-status]').forEach(b=>b.onclick=()=>{const[k,v]=b.dataset.recordStatus.split('|');delete selectedFiles[k];s.records[k]=v;save();render()});
+  document.querySelectorAll('[data-photo-file]').forEach(i=>i.onchange=e=>{const file=e.target.files[0],key=i.dataset.photoFile;if(file&&acceptFile(file,false)){selectedFiles[key]=file;s.photos[key]=`عکس انتخاب شد: ${file.name}`;save();render()}});
+  document.querySelectorAll('[data-photo-skip]').forEach(b=>b.onclick=()=>{const key=b.dataset.photoSkip;delete selectedFiles[key];s.photos[key]='الان نمی‌توانم';save();render()});
   const c=$('consent');if(c)c.onchange=()=>{s.consent=c.checked;save()}
+  const reset=document.querySelector('[data-new-case]');if(reset)reset.onclick=resetCase;
 }
+function acceptFile(file,allowPdf){
+  const allowed=['image/jpeg','image/png','image/webp'],extension=(file.name.split('.').pop()||'').toLowerCase();if(allowPdf)allowed.push('application/pdf');
+  const validType=allowed.includes(file.type)||['jpg','jpeg','png','webp'].includes(extension)||(allowPdf&&extension==='pdf');
+  if(!validType){alert('فرمت فایل مجاز نیست. فقط JPEG، PNG، WebP و برای رادیوگرافی PDF مجاز است.');return false}
+  if(file.size>12*1024*1024){alert('حجم هر فایل باید حداکثر ۱۲ مگابایت باشد.');return false}
+  return true
+}
+function mobileValid(value){const digits=String(value).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[\s()+-]/g,'');return /^\d{10,15}$/.test(digits)}
 function valid(){
   if(n===0&&!s.problem){alert('لطفاً یک گزینه را انتخاب کنید.');return false}
   if(n===0&&s.problem===problems[0]&&!s.missingCount){alert('لطفاً تعداد تقریبی دندان‌ها را انتخاب کنید.');return false}
   if(n===1&&!s.jaws.length){alert('لطفاً فک بالا، فک پایین یا هر دو را انتخاب کنید.');return false}
   if(n===1&&s.jaws.some(j=>!s.jawParts[j])){alert('برای هر فک انتخاب‌شده، کامل، سمت راست یا سمت چپ را مشخص کنید.');return false}
-  if(n===5&&(!s.name.trim()||!s.mobile.trim())){alert('لطفاً نام و شماره موبایل را وارد کنید.');return false}
+  if(n===5&&(!s.name.trim()||!s.mobile.trim()||!s.city.trim())){alert('لطفاً نام، شماره موبایل و شهر را وارد کنید.');return false}
+  if(n===5&&!mobileValid(s.mobile)){alert('شماره موبایل معتبر وارد کنید.');return false}
   if(n===6&&!s.consent){alert('برای پایان، اجازه بررسی اطلاعات را تأیید کنید.');return false}
   return true
 }
-next.onclick=()=>{if(!valid())return;if(n<6){n++;render();window.scrollTo({top:0,behavior:'smooth'})}else{next.textContent='ثبت شد';next.disabled=true}};
+async function submitCase(){
+  if(submitting||s.completedCaseId)return;
+  const total=Object.values(selectedFiles).reduce((sum,file)=>sum+file.size,0);if(total>50*1024*1024){alert('حجم مجموع فایل‌ها باید حداکثر ۵۰ مگابایت باشد.');return}
+  submitting=true;submitError='';render();
+  const form=new FormData();
+  form.append('payload',JSON.stringify({submission_key:s.submissionKey,name:s.name,mobile:s.mobile,city:s.city,problem:s.problem,missingCount:s.missingCount,jaws:s.jaws,jawParts:s.jawParts,teeth:s.teeth,medical:s.medical,diseaseText:s.diseaseText,medText:s.medText,suggestedQuestions:s.suggestedQuestions,question:s.question,records:s.records,photos:s.photos,consent:s.consent}));
+  for(const [slot,file] of Object.entries(selectedFiles))form.append(slot,file,file.name);
+  try{const response=await fetch(`${API}/cases`,{method:'POST',body:form,cache:'no-store'});let data={};try{data=await response.json()}catch{}if(!response.ok)throw new Error(data.detail||'ثبت پرونده انجام نشد.');s.completedCaseId=data.case_id;save()}catch(error){submitError=error.message==='Failed to fetch'?'ارتباط با سرور برقرار نشد. اینترنت را بررسی و دوباره تلاش کنید.':String(error.message||'ثبت پرونده انجام نشد.')}finally{submitting=false;render();window.scrollTo({top:0,behavior:'smooth'})}
+}
+function resetCase(){for(const key of Object.keys(selectedFiles))delete selectedFiles[key];s=JSON.parse(JSON.stringify(fresh));s.submissionKey=newId();n=0;submitError='';localStorage.setItem(KEY,JSON.stringify(s));render();window.scrollTo({top:0,behavior:'smooth'})}
+next.onclick=()=>{if(!valid())return;if(n<6){n++;render();window.scrollTo({top:0,behavior:'smooth'})}else submitCase()};
 back.onclick=()=>{if(n>0){n--;render();window.scrollTo({top:0,behavior:'smooth'})}};
 render()
 })();
