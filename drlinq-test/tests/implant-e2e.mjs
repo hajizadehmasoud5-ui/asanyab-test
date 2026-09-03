@@ -157,6 +157,7 @@ try {
   await doctor.locator(`[data-case-row="${caseId}"] [data-open-case]`).click();
   await doctor.getByRole('heading', { name: patientName }).waitFor();
   await doctor.locator('#patientResponsePanel').waitFor({ timeout: 10_000 });
+  await doctor.waitForFunction(expected => document.getElementById('patientResponse')?.value === expected, patientResponse, { timeout: 10_000 });
   assert.equal(await doctor.locator('#reviewStatus').inputValue(), 'needs_more_info');
   assert.equal(await doctor.locator('#doctorNote').inputValue(), doctorNote);
   assert.equal(await doctor.locator('#patientResponse').inputValue(), patientResponse);
