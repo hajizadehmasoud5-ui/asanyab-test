@@ -1,4 +1,4 @@
-name: VPS ChatGPT Display Inspect Temp
+name: VPS ChatGPT Launcher Inspect Temp
 
 on:
   push:
@@ -18,7 +18,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass
-      - name: Inspect ChatGPT launcher and session display
+      - name: Inspect launchers
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
@@ -26,4 +26,4 @@ jobs:
           SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
         run: |
           : "${VPS_PORT:=22}"
-          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "echo '--- desktop launchers ---'; ls -1 /home/drlinqdesk/Desktop; echo '--- ChatGPT desktop files ---'; grep -Ril 'ChatGPT' /home/drlinqdesk/Desktop /home/drlinqdesk/.local/share/applications /usr/share/applications 2>/dev/null | head -n 20; echo '--- launcher contents ---'; for f in /home/drlinqdesk/Desktop/*ChatGPT* /home/drlinqdesk/.local/share/applications/*ChatGPT* /usr/share/applications/*ChatGPT*; do [ -f \"$f\" ] && { echo FILE:$f; sed -n '1,120p' \"$f\"; }; done; echo '--- processes ---'; ps -u drlinqdesk -o pid,cmd --sort=pid | grep -Ei 'chatgpt|electron|chrom|work' || true; echo '--- xfce dpi ---'; sudo -u drlinqdesk xfconf-query -c xsettings -p /Xft/DPI 2>/dev/null || true; echo '--- active displays ---'; for d in :10 :11 :12; do echo DISPLAY=$d; sudo -u drlinqdesk env DISPLAY=$d xrandr --current 2>/dev/null | head -n 20 || true; done"
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "sed -n '1,80p' /home/drlinqdesk/Desktop/ChatGPT.desktop; echo SECOND; sed -n '1,80p' /home/drlinqdesk/Desktop/ChatGPT-App.desktop; echo THIRD; sed -n '1,80p' /usr/share/applications/chatgpt.desktop"
