@@ -3,6 +3,7 @@ WORKDIR /app
 COPY requirements.txt /app/requirements.txt
 RUN python -m pip install --no-cache-dir -r /app/requirements.txt
 COPY app_implant.py /app/app_implant.py
+COPY app_implant_patient.py /app/app_implant_patient.py
 COPY implant_schema.sql /app/implant_schema.sql
 EXPOSE 8000
-CMD ["python", "-m", "uvicorn", "app_implant:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
+CMD ["python", "-m", "uvicorn", "app_implant_patient:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]

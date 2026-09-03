@@ -6,6 +6,7 @@ on:
     paths:
       - 'drlinq-test/**'
       - 'bank_api/app_implant.py'
+      - 'bank_api/app_implant_patient.py'
       - 'bank_api/implant_schema.sql'
       - 'bank_api/Containerfile.implant-test'
       - 'bank_api/requirements.txt'
@@ -44,11 +45,15 @@ jobs:
           npm test --prefix drlinq-test
           python -m pip install --disable-pip-version-check -q -r bank_api/requirements.txt
           (cd bank_api && python -m unittest discover -s tests -p 'test_*.py')
-          python -m py_compile bank_api/app_implant.py
+          python -m py_compile bank_api/app_implant.py bank_api/app_implant_patient.py
           test -f drlinq-test/implant-intake.html
           test -f drlinq-test/implant-doctor.html
+          test -f drlinq-test/implant-case.html
+          test -f drlinq-test/implant-intake-secure.js
+          test -f drlinq-test/implant-doctor-patient.js
           grep -q 'پرونده شما ثبت شد' drlinq-test/implant-intake.html
           grep -q 'پرونده‌های ایمپلنت' drlinq-test/implant-doctor.html
+          grep -q 'پیگیری پرونده ایمپلنت' drlinq-test/implant-case.html
 
       - name: Create ephemeral E2E doctor code
         id: e2e-code
@@ -267,7 +272,8 @@ jobs:
               && curl -fsS --max-time 15 https://n8n.drlinq.ir/drlinq-test/implant-api/health \
                 | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['ok'] and d['persistent']" \
               && curl -fsS --max-time 15 https://n8n.drlinq.ir/drlinq-test/implant-intake.html | grep -q 'پرونده شما ثبت شد' \
-              && curl -fsS --max-time 15 https://n8n.drlinq.ir/drlinq-test/implant-doctor.html | grep -q 'پرونده‌های ایمپلنت'; then
+              && curl -fsS --max-time 15 https://n8n.drlinq.ir/drlinq-test/implant-doctor.html | grep -q 'پرونده‌های ایمپلنت' \
+              && curl -fsS --max-time 15 https://n8n.drlinq.ir/drlinq-test/implant-case.html | grep -q 'پیگیری پرونده ایمپلنت'; then
               ok=1
               break
             fi
@@ -286,7 +292,7 @@ jobs:
       - name: Install Chromium for browser E2E
         run: (cd drlinq-test && npx playwright install --with-deps chromium)
 
-      - name: Run mobile patient to desktop doctor E2E
+      - name: Run mobile patient to doctor to secure patient E2E
         id: browser-e2e
         env:
           DRLINQ_TEST_BASE: ${{ env.TEST_BASE }}
@@ -294,8 +300,11 @@ jobs:
         run: |
           result="$(node drlinq-test/tests/implant-e2e.mjs)"
           echo "$result"
-          case_id="$(printf '%s\n' "$result" | tail -n 1 | python -c 'import json,sys; print(json.load(sys.stdin)["case_id"])')"
+          json="$(printf '%s\n' "$result" | tail -n 1)"
+          case_id="$(printf '%s' "$json" | python -c 'import json,sys; print(json.load(sys.stdin)["case_id"])')"
+          patient_secure_url="$(printf '%s' "$json" | python -c 'import json,sys; print(json.load(sys.stdin)["patient_secure_url"])')"
           echo "case_id=$case_id" >> "$GITHUB_OUTPUT"
+          echo "patient_secure_url=$patient_secure_url" >> "$GITHUB_OUTPUT"
 
       - name: Remove ephemeral login and verify restart persistence
         if: always() && steps.deploy.outcome == 'success'
@@ -305,6 +314,7 @@ jobs:
           VPS_PORT: ${{ secrets.VPS_PORT }}
           SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
           CASE_ID: ${{ steps.browser-e2e.outputs.case_id }}
+          PATIENT_SECURE_URL: ${{ steps.browser-e2e.outputs.patient_secure_url }}
         run: |
           : "${VPS_PORT:=22}"
           sshpass -e ssh -o ConnectTimeout=20 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "bash -s -- '$CASE_ID'" <<'REMOTE'
@@ -342,14 +352,45 @@ jobs:
           ])
           with psycopg.connect(dsn) as conn:
               row = conn.execute(
-                  """SELECT c.status, c.doctor_note,
+                  """SELECT c.status, c.doctor_note, c.patient_response_published,
+                            c.more_info_required_published, c.more_info_message_published,
+                            c.response_published_at, c.patient_access_token_hash,
                             (SELECT count(*) FROM implant_case_files f WHERE f.case_id=c.id) AS file_count
                      FROM implant_cases c WHERE c.case_code=%s""",
                   (case_id,),
               ).fetchone()
-          assert row and row[0] == "ready_for_consult" and row[1].startswith("یادداشت تست پایدار")
-          assert row[2] == 2
-          print(f"restart persistence: PASS ({case_id})")
+          assert row and row[0] == "needs_more_info" and row[1].startswith("یادداشت تست پایدار")
+          assert row[2].startswith("پاسخ تست بیمار") and row[3] is True
+          assert row[4].startswith("درخواست اطلاعات تست") and row[5] is not None
+          assert row[6] and len(row[6]) == 64 and row[7] == 2
+          print(f"restart database persistence: PASS ({case_id})")
           PY
           fi
           REMOTE
+
+          python - <<'PY'
+          import json
+          import os
+          from urllib.parse import parse_qs, quote, urlparse
+          import requests
+
+          secure_url = os.environ.get("PATIENT_SECURE_URL", "")
+          case_id = os.environ.get("CASE_ID", "")
+          assert secure_url and case_id
+          parsed = urlparse(secure_url)
+          params = parse_qs(parsed.fragment)
+          assert params.get("case", [""])[0] == case_id
+          token = params.get("token", [""])[0]
+          assert len(token) >= 40
+          api = f"{os.environ['TEST_BASE']}/implant-api/patient/cases/{quote(case_id)}?token={quote(token)}"
+          response = requests.get(api, timeout=20)
+          response.raise_for_status()
+          data = response.json()
+          assert data["case_id"] == case_id
+          assert data["patient_response"].startswith("پاسخ تست بیمار")
+          assert data["more_info_required"] is True
+          assert data["more_info_message"].startswith("درخواست اطلاعات تست")
+          assert data["response_published_at"]
+          assert "doctor_note" not in data and "patient_name" not in data and "mobile" not in data
+          print(f"restart secure patient API persistence: PASS ({case_id})")
+          PY

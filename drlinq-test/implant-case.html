@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<title>دکترلینک | پیگیری پرونده ایمپلنت</title>
+<style>
+:root{--g:#119b70;--gd:#087d59;--gs:#edf9f5;--ink:#1c252b;--mut:#738079;--line:#e0e7e3;--bg:#f2f6f4;--warn:#8a4b08;--warnbg:#fff4e5}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif}.app{width:min(100%,520px);min-height:100svh;margin:auto;background:#fff;padding:22px 17px 44px}.brand{font-size:24px;font-weight:950;margin-bottom:28px}.brand b{color:var(--g)}h1{font-size:26px;margin:0 0 8px}.sub{color:var(--mut);line-height:1.9;margin:0 0 20px}.card{border:1px solid var(--line);border-radius:20px;padding:17px;margin-top:13px;background:#fff;box-shadow:0 8px 28px #144b370b}.row{display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid #eef2f0;line-height:1.8}.row:last-child{border:0}.row b{font-size:13px;color:#68756f}.ltr{direction:ltr;text-align:left}.status{display:inline-flex;padding:7px 11px;border-radius:999px;background:#f0f4f2;font-size:13px;font-weight:850}.status.ready_for_consult,.status.reviewed{background:var(--gs);color:var(--gd)}.status.needs_more_info,.status.needs_visit_cbct{background:var(--warnbg);color:var(--warn)}.response{white-space:pre-wrap;line-height:2;font-size:16px}.pending{border:1px solid #cfe8de;background:#f3fbf8;color:#37675a;border-radius:17px;padding:14px;line-height:1.9}.more{border:1px solid #f0d2a9;background:var(--warnbg);color:#77430e;border-radius:17px;padding:14px;line-height:1.9;margin-top:14px}.loading,.error{text-align:center;padding:60px 18px;color:var(--mut);line-height:2}.error{color:#a52a20}.hidden{display:none!important}
+</style>
+</head>
+<body>
+<main class="app"><div class="brand">دکتر<b>لینک</b></div><div id="root" class="loading">در حال دریافت پرونده…</div></main>
+<script>
+(()=>{
+'use strict';
+const root=document.getElementById('root'),labels={unreviewed:'پرونده شما در حال بررسی است',needs_more_info:'نیاز به اطلاعات بیشتر',ready_for_consult:'آماده پاسخ / مشاوره',needs_visit_cbct:'نیاز به ویزیت یا CBCT',reviewed:'بررسی شده'};
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function fmt(value){if(!value)return '—';try{return new Intl.DateTimeFormat('fa-IR',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value))}catch{return value}}
+function params(){const p=new URLSearchParams(location.hash.replace(/^#/,''));return{caseId:p.get('case')||'',token:p.get('token')||''}}
+function render(data){const published=Boolean(data.response_published_at);root.className='';root.innerHTML=`<h1>پیگیری پرونده ایمپلنت</h1><p class="sub">این صفحه فقط با لینک امن اختصاصی پرونده شما باز می‌شود.</p><section class="card"><div class="row"><b>شماره پرونده</b><span class="ltr" data-case-id>${esc(data.case_id)}</span></div><div class="row"><b>زمان ثبت</b><span>${esc(fmt(data.created_at))}</span></div><div class="row"><b>وضعیت</b><span class="status ${esc(data.status)}">${esc(labels[data.status]||'در حال بررسی')}</span></div></section><section class="card"><b style="display:block;margin-bottom:12px">پاسخ پزشک</b>${published&&data.patient_response?`<div class="response" data-patient-response>${esc(data.patient_response)}</div><div style="margin-top:13px;color:#738079;font-size:13px">زمان انتشار: <span data-published-at>${esc(fmt(data.response_published_at))}</span></div>`:'<div class="pending" data-pending>پرونده شما در حال بررسی است. پس از انتشار پاسخ پزشک، پاسخ در همین صفحه نمایش داده می‌شود.</div>'}${published&&data.more_info_required?`<div class="more" data-more-info><b>اطلاعات بیشتری لازم است</b><div style="margin-top:6px;white-space:pre-wrap">${esc(data.more_info_message||'لطفاً اطلاعات تکمیلی خواسته‌شده را آماده کنید.')}</div></div>`:''}</section>`}
+async function load(){const {caseId,token}=params();if(!/^IMP-\d{8}-[0-9A-F]{6}$/.test(caseId)||token.length<40){root.className='error';root.textContent='لینک پیگیری معتبر نیست.';return}try{const response=await fetch(`implant-api/patient/cases/${encodeURIComponent(caseId)}?token=${encodeURIComponent(token)}`,{cache:'no-store',referrerPolicy:'no-referrer'});if(!response.ok)throw new Error('not_found');render(await response.json())}catch{root.className='error';root.textContent='این لینک معتبر نیست یا دسترسی به پرونده امکان‌پذیر نیست.'}}
+load();
+})();
+</script>
+</body>
+</html>

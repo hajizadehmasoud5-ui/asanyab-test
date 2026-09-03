@@ -22,14 +22,34 @@ CREATE TABLE IF NOT EXISTS implant_cases (
     CHECK (status IN ('unreviewed', 'needs_more_info', 'ready_for_consult', 'needs_visit_cbct', 'reviewed')),
   doctor_note TEXT NOT NULL DEFAULT '',
   reviewed_at TIMESTAMPTZ,
+  patient_access_token_hash TEXT,
+  patient_response_draft TEXT NOT NULL DEFAULT '',
+  more_info_required_draft BOOLEAN NOT NULL DEFAULT FALSE,
+  more_info_message_draft TEXT NOT NULL DEFAULT '',
+  patient_response_published TEXT NOT NULL DEFAULT '',
+  more_info_required_published BOOLEAN NOT NULL DEFAULT FALSE,
+  more_info_message_published TEXT NOT NULL DEFAULT '',
+  response_published_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE implant_cases ADD COLUMN IF NOT EXISTS patient_access_token_hash TEXT;
+ALTER TABLE implant_cases ADD COLUMN IF NOT EXISTS patient_response_draft TEXT NOT NULL DEFAULT '';
+ALTER TABLE implant_cases ADD COLUMN IF NOT EXISTS more_info_required_draft BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE implant_cases ADD COLUMN IF NOT EXISTS more_info_message_draft TEXT NOT NULL DEFAULT '';
+ALTER TABLE implant_cases ADD COLUMN IF NOT EXISTS patient_response_published TEXT NOT NULL DEFAULT '';
+ALTER TABLE implant_cases ADD COLUMN IF NOT EXISTS more_info_required_published BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE implant_cases ADD COLUMN IF NOT EXISTS more_info_message_published TEXT NOT NULL DEFAULT '';
+ALTER TABLE implant_cases ADD COLUMN IF NOT EXISTS response_published_at TIMESTAMPTZ;
 
 CREATE INDEX IF NOT EXISTS idx_implant_cases_created_at
   ON implant_cases(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_implant_cases_status_created_at
   ON implant_cases(status, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_implant_cases_patient_access_token_hash
+  ON implant_cases(patient_access_token_hash)
+  WHERE patient_access_token_hash IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS implant_case_files (
   id UUID PRIMARY KEY,
