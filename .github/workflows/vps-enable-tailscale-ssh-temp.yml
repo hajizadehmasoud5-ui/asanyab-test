@@ -1,0 +1,30 @@
+name: VPS Enable Tailscale SSH Temp
+
+on:
+  push:
+    branches: [drlinq-patient-v1-wip]
+    paths:
+      - '.github/workflows/vps-enable-tailscale-ssh-temp.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  enable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Install sshpass
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass
+      - name: Enable Tailscale SSH on VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+        run: |
+          : "${VPS_PORT:=22}"
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
+            "tailscale set --ssh && tailscale status --self"
