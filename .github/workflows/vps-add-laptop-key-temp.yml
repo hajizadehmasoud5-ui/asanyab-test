@@ -1,0 +1,43 @@
+name: VPS Add Laptop Key Temp
+
+on:
+  push:
+    branches: [drlinq-patient-v1-wip]
+    paths:
+      - '.github/workflows/vps-add-laptop-key-temp.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  add-key:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Install sshpass
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass
+
+      - name: Add laptop SSH key
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+        run: |
+          : "${VPS_PORT:=22}"
+          KEY='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJGfEL+u0x58TedvjT4Lmc0IoS2jV4Nu4kMGXrYegRPn rayandika@DESKTOP-9027PMF1'
+          mkdir -p ~/.ssh
+          ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          sshpass -e ssh -o ConnectTimeout=15 -o BatchMode=no -o PasswordAuthentication=yes -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "umask 077; mkdir -p ~/.ssh; touch ~/.ssh/authorized_keys; grep -qxF '$KEY' ~/.ssh/authorized_keys || printf '%s\n' '$KEY' >> ~/.ssh/authorized_keys; chmod 700 ~/.ssh; chmod 600 ~/.ssh/authorized_keys"
+
+      - name: Verify key
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+        run: |
+          : "${VPS_PORT:=22}"
+          sshpass -e ssh -o ConnectTimeout=15 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "grep -q 'rayandika@DESKTOP-9027PMF1' ~/.ssh/authorized_keys"
