@@ -15,6 +15,7 @@ assert.match(patient, /implant-api/);
 assert.match(patient, /submission_key/);
 assert.match(patient, /پرونده شما ثبت شد/);
 assert.match(patient, /12\*1024\*1024/);
+assert.doesNotMatch(patient, /class="mouthchart"/, 'legacy CBCT asset must not replace the live tooth controls');
 assert.match(doctor, /Authorization/);
 assert.match(doctor, /sessionStorage/);
 assert.match(doctor, /ready_for_consult/);

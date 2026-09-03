@@ -36,8 +36,8 @@ button,input,textarea{font:inherit}
 .jaw-block-title{font-size:14px;font-weight:900;color:#4f625a;margin:0 2px 8px}
 .jawparts{grid-template-columns:repeat(3,1fr)}
 .jawparts .choice{min-height:52px;padding:10px 39px 10px 8px;font-size:14px}
-.mouthchart{margin-top:14px;border:1px solid #dce7e2;border-radius:24px;padding:17px 9px 18px;background:linear-gradient(180deg,#fbfefd,#f1faf6)}
-.mouthchart h3{text-align:center;margin:0 0 5px}
+.implant-mouthchart{margin-top:14px;border:1px solid #dce7e2;border-radius:24px;padding:17px 9px 18px;background:linear-gradient(180deg,#fbfefd,#f1faf6)}
+.implant-mouthchart h3{text-align:center;margin:0 0 5px}
 .mut{font-size:14px;line-height:1.8;color:#808b91}
 .patient-side{display:flex;justify-content:space-between;gap:10px;margin:14px 3px 5px;color:#89948f;font-size:11px;font-weight:800}
 .archline{display:grid;grid-template-columns:repeat(16,minmax(0,1fr));gap:1px;direction:ltr;align-items:end;margin:8px 0 12px}
@@ -96,7 +96,7 @@ button,input,textarea{font:inherit}
 @media(max-width:390px){
   .wrap{padding:18px 14px 126px}.top{padding:15px 14px 12px}.intro h1{font-size:26px}.intro p{font-size:15px}
   .choice{font-size:16px;min-height:64px}.upload-row{grid-template-columns:40% 60%;gap:8px}.uploadside b{font-size:15px}.uploadbtn{font-size:12px}
-  .mouthchart{padding-left:5px;padding-right:5px}.toothbtn{padding:0}.toothbtn svg{height:34px}.toothbtn .num{font-size:8px}.jawparts .choice{font-size:12px;padding-right:31px}
+  .implant-mouthchart{padding-left:5px;padding-right:5px}.toothbtn{padding:0}.toothbtn svg{height:34px}.toothbtn .num{font-size:8px}.jawparts .choice{font-size:12px;padding-right:31px}
 }
 </style>
 </head>
@@ -202,7 +202,7 @@ function toothButton(num,lower=false){
   </button>`;
 }
 function chart(){
-  return `<div class="mouthchart">
+  return `<div class="implant-mouthchart">
     <h3>انتخاب دندان دقیق (اختیاری)</h3>
     <div class="mut" style="text-align:center">شماره‌ها بر اساس سیستم رایج FDI هستند. روی یک یا چند دندان بزنید.</div>
     <div class="patient-side"><span>راست بیمار</span><span>چپ بیمار</span></div>
