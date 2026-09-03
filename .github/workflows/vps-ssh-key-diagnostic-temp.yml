@@ -7,7 +7,7 @@ on:
       - '.github/workflows/vps-ssh-key-diagnostic-temp.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   diagnose:
@@ -27,11 +27,4 @@ jobs:
         run: |
           : "${VPS_PORT:=22}"
           sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
-            "echo HOST=\$(hostname); /usr/sbin/sshd -T | grep -E '^(pubkeyauthentication|authorizedkeysfile|permitrootlogin|authenticationmethods) '; stat -c 'ROOT=%a:%U:%G' /root; stat -c 'SSH=%a:%U:%G' /root/.ssh; stat -c 'AUTH=%a:%U:%G' /root/.ssh/authorized_keys; grep -c 'rayandika@DESKTOP-9027PMF1' /root/.ssh/authorized_keys" > ssh-key-diagnostic.txt
-      - name: Commit result
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ssh-key-diagnostic.txt
-          git commit -m "Record VPS SSH key diagnostic" || exit 0
-          git push
+            "echo HOST=\$(hostname); /usr/sbin/sshd -T | grep -E '^(pubkeyauthentication|authorizedkeysfile|permitrootlogin|authenticationmethods) '; stat -c 'ROOT=%a:%U:%G' /root; stat -c 'SSH=%a:%U:%G' /root/.ssh; stat -c 'AUTH=%a:%U:%G' /root/.ssh/authorized_keys; grep -c 'rayandika@DESKTOP-9027PMF1' /root/.ssh/authorized_keys"
