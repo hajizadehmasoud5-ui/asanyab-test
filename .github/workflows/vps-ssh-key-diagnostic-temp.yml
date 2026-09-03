@@ -1,4 +1,4 @@
-name: VPS XRDP Fix Temp
+name: VPS XRDP Start Temp
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  fix:
+  start:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -18,7 +18,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass
-      - name: Repair XFCE XRDP session
+      - name: Start XRDP
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
@@ -26,4 +26,4 @@ jobs:
           SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
         run: |
           : "${VPS_PORT:=22}"
-          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "pkill -u drlinqdesk -f 'xfce4-session|xfwm4|xfce4-panel|xfdesktop' 2>/dev/null || true; rm -rf /home/drlinqdesk/.cache/sessions/*; rm -f /home/drlinqdesk/.ICEauthority /home/drlinqdesk/.Xauthority; printf 'exec startxfce4\n' > /home/drlinqdesk/.xsession; chown drlinqdesk:drlinqdesk /home/drlinqdesk/.xsession; chmod 700 /home/drlinqdesk/.xsession; systemctl restart xrdp-sesman xrdp; sleep 2; echo XRDP=$(systemctl is-active xrdp); echo SESMAN=$(systemctl is-active xrdp-sesman); cat /home/drlinqdesk/.xsession"
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "systemctl start xrdp; systemctl start xrdp-sesman; systemctl is-active xrdp; systemctl is-active xrdp-sesman"
