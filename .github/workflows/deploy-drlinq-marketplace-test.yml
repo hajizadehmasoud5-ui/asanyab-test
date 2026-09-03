@@ -39,7 +39,7 @@ jobs:
           cache: npm
           cache-dependency-path: drlinq-test/package-lock.json
 
-      - name: Run static and unit checks
+      - name: Run static, unit, and browser E2E checks
         run: |
           npm ci --prefix drlinq-test
           npm test --prefix drlinq-test
@@ -66,7 +66,7 @@ jobs:
           echo "hash=$hash" >> "$GITHUB_OUTPUT"
 
       - name: Prepare deployment archive
-        run: tar -czf /tmp/drlinq-implant-test.tgz drlinq-test bank_api
+        run: tar --exclude=drlinq-test/node_modules -czf /tmp/drlinq-implant-test.tgz drlinq-test bank_api
 
       - name: Install SSH client helper
         run: |
