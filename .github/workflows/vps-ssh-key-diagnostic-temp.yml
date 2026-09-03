@@ -1,4 +1,4 @@
-name: VPS ChatGPT Launcher Inspect Temp
+name: VPS ChatGPT Scale Fix Temp
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  inspect:
+  fix:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -18,7 +18,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass
-      - name: Inspect launchers
+      - name: Set ChatGPT app scale
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
@@ -26,4 +26,4 @@ jobs:
           SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
         run: |
           : "${VPS_PORT:=22}"
-          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "sed -n '1,80p' /home/drlinqdesk/Desktop/ChatGPT.desktop; echo SECOND; sed -n '1,80p' /home/drlinqdesk/Desktop/ChatGPT-App.desktop; echo THIRD; sed -n '1,80p' /usr/share/applications/chatgpt.desktop"
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "sed -i 's#^Exec=/usr/bin/chatgpt.*#Exec=/usr/bin/chatgpt --force-device-scale-factor=0.85#' /home/drlinqdesk/Desktop/ChatGPT-App.desktop; mkdir -p /home/drlinqdesk/.local/share/applications; cp /usr/share/applications/chatgpt.desktop /home/drlinqdesk/.local/share/applications/chatgpt.desktop; sed -i 's#^Exec=chatgpt %U#Exec=/usr/bin/chatgpt --force-device-scale-factor=0.85 %U#' /home/drlinqdesk/.local/share/applications/chatgpt.desktop; chown -R drlinqdesk:drlinqdesk /home/drlinqdesk/.local/share/applications /home/drlinqdesk/Desktop/ChatGPT-App.desktop; echo DESKTOP; grep '^Exec=' /home/drlinqdesk/Desktop/ChatGPT-App.desktop; echo MENU; grep '^Exec=' /home/drlinqdesk/.local/share/applications/chatgpt.desktop"
