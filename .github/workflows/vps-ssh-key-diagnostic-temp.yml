@@ -1,4 +1,4 @@
-name: VPS SSH Key Diagnostic Temp
+name: VPS XRDP Diagnostic Temp
 
 on:
   push:
@@ -18,7 +18,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass
-      - name: Inspect recent SSH auth logs
+      - name: Inspect XRDP logs
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
@@ -26,7 +26,4 @@ jobs:
           SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
         run: |
           : "${VPS_PORT:=22}"
-          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
-            "journalctl -u ssh --since '20 minutes ago' --no-pager | tail -n 120"
-
-# trigger-auth-log-check
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "systemctl is-active xrdp; systemctl is-active xrdp-sesman; tail -n 80 /var/log/xrdp.log; tail -n 120 /var/log/xrdp-sesman.log; getent passwd drlinqdesk; ls -la /home/drlinqdesk; cat /home/drlinqdesk/.xsession 2>/dev/null || true; tail -n 80 /home/drlinqdesk/.xsession-errors 2>/dev/null || true"
