@@ -4,7 +4,9 @@ import { webcrypto } from 'node:crypto';
 
 const values = new Map();
 global.localStorage = { getItem: key => values.get(key) || null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) };
-global.crypto = webcrypto;
+if (!globalThis.crypto?.getRandomValues) {
+  Object.defineProperty(globalThis, 'crypto', { value: webcrypto, configurable: true });
+}
 const reports = await import('../assets/treatment-report.js');
 
 test('ships persistent treatment and offer libraries', () => {
