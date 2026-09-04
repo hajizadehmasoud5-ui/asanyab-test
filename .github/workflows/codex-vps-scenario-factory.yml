@@ -1,0 +1,115 @@
+name: Codex VPS - Scenario Factory MVP
+
+on:
+  push:
+    branches: [drlinq-patient-v1-wip]
+    paths:
+      - '.github/codex-tasks/scenario-factory-task.txt'
+      - '.github/workflows/codex-vps-scenario-factory.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: codex-vps-scenario-factory
+  cancel-in-progress: true
+
+jobs:
+  codex-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: drlinq-patient-v1-wip
+          fetch-depth: 0
+
+      - name: Prepare workspace archive
+        run: tar --exclude=.git -czf /tmp/drlinq-codex-work.tgz .
+
+      - name: Install SSH helper
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass
+
+      - name: Run Codex on VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          SSHPASS: ${{ secrets.VPS_NEW_ROOT_PASSWORD }}
+        run: |
+          : "${VPS_PORT:=22}"
+          mkdir -p ~/.ssh
+          ssh-keyscan -T 10 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          remote_dir="/tmp/drlinq-scenario-codex-${GITHUB_RUN_ID}"
+          sshpass -e ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "rm -rf '$remote_dir' && mkdir -p '$remote_dir'"
+          sshpass -e scp -P "$VPS_PORT" /tmp/drlinq-codex-work.tgz "$VPS_USER@$VPS_HOST:$remote_dir/work.tgz"
+          sshpass -e ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "bash -s -- '$remote_dir'" <<'REMOTE'
+          set -euo pipefail
+          remote_dir="$1"
+          work="$remote_dir/work"
+          mkdir -p "$work"
+          tar -xzf "$remote_dir/work.tgz" -C "$work"
+          command -v codex
+          codex --version
+
+          auth_file=""
+          for base in /root /home /opt /srv /data /mnt /var/lib/docker/volumes; do
+            [ -d "$base" ] || continue
+            found="$(timeout 6s find "$base" -maxdepth 8 -type f -path '*/.codex/auth.json' 2>/dev/null | head -n 1 || true)"
+            if [ -n "$found" ]; then auth_file="$found"; break; fi
+          done
+
+          cd "$work"
+          prompt_file="$work/.github/codex-tasks/scenario-factory-task.txt"
+          if [ -n "$auth_file" ]; then
+            export CODEX_HOME="$(dirname "$auth_file")"
+            codex exec --sandbox workspace-write --skip-git-repo-check "$(cat "$prompt_file")"
+          elif bash -lic 'test -n "${OPENAI_API_KEY:-}"' >/dev/null 2>&1; then
+            export DRLINQ_CODEX_WORK="$work"
+            export DRLINQ_CODEX_PROMPT="$prompt_file"
+            bash -lic 'cd "$DRLINQ_CODEX_WORK" && codex exec --sandbox workspace-write --skip-git-repo-check "$(cat "$DRLINQ_CODEX_PROMPT")"'
+          else
+            echo "Codex is installed but not authenticated on VPS." >&2
+            exit 9
+          fi
+
+          test -s drlinq-test/scenario-factory.html
+          grep -q 'SCENARIO_FACTORY_MVP_01' drlinq-test/scenario-factory.html
+          grep -q 'کارخانه سناریو ترمیم' drlinq-test/scenario-factory.html
+          grep -q 'ساخت سناریو' drlinq-test/scenario-factory.html
+          grep -q 'نسخه متفاوت' drlinq-test/scenario-factory.html
+          grep -q 'کپی متن' drlinq-test/scenario-factory.html
+          tar -czf "$remote_dir/result.tgz" drlinq-test/scenario-factory.html
+          REMOTE
+          sshpass -e scp -P "$VPS_PORT" "$VPS_USER@$VPS_HOST:$remote_dir/result.tgz" /tmp/drlinq-scenario-result.tgz
+          sshpass -e ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "rm -rf '$remote_dir'"
+
+      - name: Apply Codex result and validate
+        run: |
+          tar -xzf /tmp/drlinq-scenario-result.tgz
+          git diff --check
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('drlinq-test/scenario-factory.html')
+          t=p.read_text(encoding='utf-8')
+          required=['SCENARIO_FACTORY_MVP_01','کارخانه سناریو ترمیم','ساخت سناریو','نسخه متفاوت','کپی متن','موضوع محتوا','مخاطب','هدف','لحن','مدت','زاویه']
+          for x in required:
+              assert x in t, x
+          assert '<script' in t.lower()
+          assert '<style' in t.lower()
+          assert 'fetch(' not in t
+          PY
+
+      - name: Commit Codex result
+        run: |
+          if git diff --quiet -- drlinq-test/scenario-factory.html; then
+            echo 'Codex made no scenario factory file change' >&2
+            exit 1
+          fi
+          git config user.name 'DrLinq Codex VPS'
+          git config user.email 'codex-vps@users.noreply.github.com'
+          git add drlinq-test/scenario-factory.html
+          git commit -m 'Build restorative scenario factory MVP via Codex'
+          git push origin HEAD:drlinq-patient-v1-wip
