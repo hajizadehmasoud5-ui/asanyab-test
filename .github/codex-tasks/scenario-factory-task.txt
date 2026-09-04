@@ -1,0 +1,105 @@
+Continue ONLY in the existing repository and branch. Do not create a new project. Build a very small, testable MVP called “Scenario Factory — Restorative” inside the existing drlinq-test static app.
+
+GOAL
+Create exactly one new page:
+  drlinq-test/scenario-factory.html
+Do not change the existing implant pages, backend, deployment files, or main DrLinq site.
+
+THIS IS A SPEED-FIRST MVP
+The owner explicitly wants a usable first line quickly, then iterative fixes. Do not overengineer. No framework, no npm dependency, no database, no login, no API key, no backend. One standalone HTML file with inline CSS + JS, Persian RTL, mobile friendly.
+
+WHAT THE USER SHOULD SEE
+Title: «کارخانه سناریو ترمیم»
+Subtitle: «نسخه آزمایشی سریع — موضوع بده، سناریوی کامل بگیر»
+
+INPUTS
+1) موضوع محتوا — required free-text input. Placeholder example: «دندونم درد نداره؛ ممکنه پوسیده باشه؟»
+2) مخاطب — select, default «بیمار عمومی»; options: بیمار عمومی / فردی که دندان‌درد ندارد / بیمار دارای پرکردگی قدیمی / بیمار حساس به هزینه / بیمار مضطرب
+3) هدف — select, default «گرفتن وقت معاینه»; options: گرفتن وقت معاینه / آموزش و اعتمادسازی / پاسخ به سؤال رایج / کاهش ترس / معرفی ترمیم
+4) لحن — select, default «خودمانی و حرفه‌ای»; options: خودمانی و حرفه‌ای / مستقیم و کوتاه / آرام و اطمینان‌بخش / کنجکاوی‌برانگیز
+5) مدت — select: 20–30 ثانیه / 30–45 ثانیه (default) / 45–60 ثانیه
+6) زاویه — select: خودکار (default) / باور غلط / سؤال بیمار / هشدار ملایم / توضیح ساده
+
+BUTTON
+Primary button: «ساخت سناریو»
+Secondary button after result: «نسخه متفاوت»
+Copy button: «کپی متن»
+
+OUTPUT
+Show ONE final ready-to-speak Persian scenario as one coherent text block, not a list of 3 hooks. It should already contain:
+- a short hook at the beginning
+- natural spoken body
+- one useful clinical point
+- a low-pressure CTA at the end
+Do not show internal prompt engineering or JSON.
+Also show a tiny footer under result: «نسخه MVP برای تست سبک و ساختار — ادعای درمانی نهایی قبل از انتشار باید توسط دندانپزشک تأیید شود.»
+
+CONTENT ENGINE V0
+Because this MVP must work with zero API credentials, implement a deterministic client-side scenario engine with variation. It must NOT be a fake loading screen. Clicking the button must always produce a complete scenario immediately.
+
+Use the topic text plus selected audience/goal/tone/duration/angle to produce a natural script. Implement several reusable Persian phrase banks so «نسخه متفاوت» really changes phrasing and hook while preserving the same topic.
+
+The engine should be noticeably better for restorative/caries/filling topics. Detect these keyword groups and use safe, conservative clinical wording:
+A) pain/no pain keywords: درد، درد نداره، بدون درد، پوسیدگی
+B) dark spot keywords: لکه، سیاه، تیرگی
+C) proximal/hidden keywords: بین دندان، بین‌دندانی، عکس، رادیوگرافی
+D) filling/restoration keywords: پرکردگی، پر کردن، ترمیم، کامپوزیت، آمالگام
+E) sensitivity keywords: حساسیت، سرد، گرم، بعد از پرکردن
+F) old/broken filling keywords: قدیمی، شکسته، افتاده، خراب
+G) deep caries/endodontic concern keywords: عمیق، عصب، عصب‌کشی
+
+For these groups use conservative facts only. Examples of safe principles to encode in original wording, without copying a source:
+- absence of pain does not by itself prove absence of caries
+- some proximal lesions can be hard to see clinically and may require radiographic assessment when indicated
+- not every dark spot is automatically active caries
+- not every caries lesion automatically means a filling; management depends on lesion status/severity and clinical assessment
+- restored teeth can require reassessment over time; failure/recurrent disease cannot be diagnosed from appearance alone
+- postoperative sensitivity can occur, but persistent/severe symptoms need clinical evaluation
+- deep caries does not automatically equal root canal treatment; pulpal status and clinical findings matter
+Avoid absolutes like همیشه/حتماً/قطعاً unless negating a misconception.
+
+STYLE RULES
+- Persian conversational spoken language, suitable for a dentist speaking to camera.
+- One idea per scenario.
+- No scare tactics.
+- No promises of diagnosis or treatment outcome.
+- No exaggerated sales language.
+- No medical jargon unless immediately simplified.
+- No emojis inside the final script.
+- Keep script length approximately matched to selected duration.
+- The output should sound like a human dentist, not a textbook.
+
+UI
+Make it clean, similar visual language to existing DrLinq test pages: white cards, dark navy + blue, rounded controls, very simple. Mobile first. RTL.
+Add a small status chip at top: «MVP 0.1».
+Add three preset topic chips under the topic field:
+- «دندونم درد نداره؛ ممکنه پوسیده باشه؟»
+- «هر لکه سیاه روی دندان یعنی پوسیدگی؟»
+- «پوسیدگی کوچیک رو الان پر کنم یا صبر کنم؟»
+Clicking a preset fills the topic field.
+
+TECHNICAL
+- Everything in drlinq-test/scenario-factory.html only.
+- No fetch to external services.
+- No secrets.
+- No localStorage required.
+- Use semantic HTML, accessible labels, button disabled only while generating if you add a tiny transition.
+- Add meta robots noindex,nofollow.
+- Add a visible marker string in HTML: SCENARIO_FACTORY_MVP_01
+- Ensure the page works if opened directly as a static file.
+
+VALIDATION
+Before finishing, verify the created file includes all of these literal strings:
+SCENARIO_FACTORY_MVP_01
+کارخانه سناریو ترمیم
+ساخت سناریو
+نسخه متفاوت
+کپی متن
+موضوع محتوا
+مخاطب
+هدف
+لحن
+مدت
+زاویه
+
+Do not touch any other file.
