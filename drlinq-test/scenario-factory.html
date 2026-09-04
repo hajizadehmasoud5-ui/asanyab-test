@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0f1f38">
+<title>دکتر لینک | کارخانه سناریو ترمیم</title>
+<!-- SCENARIO_FACTORY_MVP_01 -->
+<style>
+:root{--navy:#0f1f38;--blue:#1769e0;--ink:#101828;--mut:#667085;--line:#e4e7ec;--bg:#f5f7fb;--white:#fff;--green:#0f8a61;--shadow:0 14px 40px rgba(16,24,40,.08)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Tahoma,Arial,sans-serif}button,input,select,textarea{font:inherit}.top{height:62px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 max(14px,calc((100vw - 920px)/2));position:sticky;top:0;z-index:10}.brand{font-size:21px;font-weight:900}.brand b{color:var(--blue)}.badge{font-size:9px;font-weight:900;color:#185da8;background:#edf5ff;border-radius:999px;padding:7px 10px}.wrap{max-width:900px;margin:18px auto;padding:0 14px 44px}.hero{background:linear-gradient(145deg,#0f1f38,#1d3b68);color:#fff;border-radius:24px;padding:23px 20px;margin-bottom:13px;box-shadow:var(--shadow)}.hero h1{margin:0 0 7px;font-size:24px}.hero p{margin:0;color:#d9e4f1;font-size:11px;line-height:2}.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(17,24,39,.02)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{margin-bottom:11px}.field label{display:block;font-size:10px;font-weight:900;margin-bottom:6px}.field input,.field select{width:100%;border:1px solid #d9dde3;border-radius:12px;padding:11px 12px;background:#fff;outline:none;font-size:11px}.field input:focus,.field select:focus{border-color:#8bb7f2;box-shadow:0 0 0 3px #edf5ff}.presets{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}.preset{border:1px solid #cdd8e7;background:#fff;border-radius:999px;padding:8px 10px;font-size:9px;cursor:pointer}.preset:hover{background:#f6f9fd}.primary{width:100%;border:0;border-radius:13px;background:var(--blue);color:#fff;padding:13px 14px;font-weight:900;cursor:pointer}.primary:active{transform:translateY(1px)}.result{display:none}.result.show{display:block}.resultHead{display:flex;align-items:center;justify-content:space-between;gap:9px;margin-bottom:10px}.resultHead h2{font-size:16px;margin:0}.ready{font-size:8px;color:#0f7655;background:#ecfaf4;padding:6px 8px;border-radius:999px;font-weight:900}.script{white-space:pre-wrap;background:#f8fafc;border:1px solid var(--line);border-radius:15px;padding:15px;font-size:12px;line-height:2.15;min-height:150px}.actions{display:flex;gap:8px;margin-top:10px}.actions button{flex:1;border-radius:11px;padding:11px 12px;font-size:10px;font-weight:900;cursor:pointer}.alt{background:#fff;border:1px solid var(--line);color:var(--ink)}.copy{background:var(--navy);border:1px solid var(--navy);color:#fff}.meta{margin-top:9px;font-size:8px;line-height:1.9;color:#98a2b3}.tiny{font-size:8px;color:#98a2b3;line-height:1.9}.error{display:none;color:#b42318;background:#fff1f0;border:1px solid #ffd5d2;border-radius:10px;padding:9px 10px;font-size:9px;margin-top:8px}.error.show{display:block}@media(max-width:650px){.grid{grid-template-columns:1fr}.hero h1{font-size:21px}.actions{display:grid}.wrap{margin-top:12px}}
+</style>
+</head>
+<body>
+<header class="top"><div class="brand">دکتر<b>لینک</b></div><span class="badge">MVP 0.1</span></header>
+<main class="wrap">
+<section class="hero"><h1>کارخانه سناریو ترمیم</h1><p>نسخه آزمایشی سریع — موضوع بده، سناریوی کامل بگیر</p></section>
+
+<section class="card">
+  <div class="field">
+    <label for="topic">موضوع محتوا</label>
+    <input id="topic" autocomplete="off" placeholder="مثلاً: دندونم درد نداره؛ ممکنه پوسیده باشه؟">
+    <div class="presets">
+      <button class="preset" type="button" data-topic="دندونم درد نداره؛ ممکنه پوسیده باشه؟">دندونم درد نداره؛ ممکنه پوسیده باشه؟</button>
+      <button class="preset" type="button" data-topic="هر لکه سیاه روی دندان یعنی پوسیدگی؟">هر لکه سیاه یعنی پوسیدگی؟</button>
+      <button class="preset" type="button" data-topic="پوسیدگی کوچیک رو الان پر کنم یا صبر کنم؟">پوسیدگی کوچیک؛ پر کنم یا صبر کنم؟</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="field"><label for="audience">مخاطب</label><select id="audience"><option>بیمار عمومی</option><option>فردی که دندان‌درد ندارد</option><option>بیمار دارای پرکردگی قدیمی</option><option>بیمار حساس به هزینه</option><option>بیمار مضطرب</option></select></div>
+    <div class="field"><label for="goal">هدف</label><select id="goal"><option>گرفتن وقت معاینه</option><option>آموزش و اعتمادسازی</option><option>پاسخ به سؤال رایج</option><option>کاهش ترس</option><option>معرفی ترمیم</option></select></div>
+    <div class="field"><label for="tone">لحن</label><select id="tone"><option>خودمانی و حرفه‌ای</option><option>مستقیم و کوتاه</option><option>آرام و اطمینان‌بخش</option><option>کنجکاوی‌برانگیز</option></select></div>
+    <div class="field"><label for="duration">مدت</label><select id="duration"><option>20–30 ثانیه</option><option selected>30–45 ثانیه</option><option>45–60 ثانیه</option></select></div>
+    <div class="field"><label for="angle">زاویه</label><select id="angle"><option>خودکار</option><option>باور غلط</option><option>سؤال بیمار</option><option>هشدار ملایم</option><option>توضیح ساده</option></select></div>
+  </div>
+  <button id="generate" class="primary" type="button">ساخت سناریو</button>
+  <div id="error" class="error">موضوع را بنویس.</div>
+</section>
+
+<section id="result" class="card result" aria-live="polite">
+  <div class="resultHead"><h2>سناریوی آماده ضبط</h2><span class="ready">آماده تست</span></div>
+  <div id="script" class="script"></div>
+  <div class="actions"><button id="variant" class="alt" type="button">نسخه متفاوت</button><button id="copy" class="copy" type="button">کپی متن</button></div>
+  <div id="meta" class="meta"></div>
+  <div class="tiny">نسخه MVP برای تست سبک و ساختار — ادعای درمانی نهایی قبل از انتشار باید توسط دندانپزشک تأیید شود.</div>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let variantIndex=0;
+const pick=(arr,seed=0)=>arr[Math.abs(seed)%arr.length];
+const hash=s=>Array.from(String(s)).reduce((a,c)=>((a<<5)-a+c.charCodeAt(0))|0,0);
+const normalize=s=>String(s||'').replace(/ي/g,'ی').replace(/ك/g,'ک').trim();
+
+function classify(topic){
+  const t=normalize(topic).toLowerCase();
+  const has=(...xs)=>xs.some(x=>t.includes(x));
+  if(has('قدیمی','شکسته','افتاده','خراب')) return 'old';
+  if(has('حساسیت','حساس','سرد','گرم','بعد از پر')) return 'sensitivity';
+  if(has('عمیق','عصب','عصب‌کشی','عصب کشی')) return 'deep';
+  if(has('بین دندان','بین‌دندانی','بین دندانی','رادیوگرافی','عکس')) return 'hidden';
+  if(has('لکه','سیاه','تیرگی')) return 'spot';
+  if(has('پرکردگی','پر کردن','پرکردن','ترمیم','کامپوزیت','آمالگام')) return 'filling';
+  if(has('درد','پوسیدگی')) return 'caries';
+  return 'generic';
+}
+
+const facts={
+ caries:[
+  'نداشتن درد به‌تنهایی ثابت نمی‌کنه که دندان پوسیدگی نداره؛ بعضی ضایعات می‌تونن مدتی بدون علامت باشن.',
+  'درد فقط یکی از نشانه‌هاست؛ برای تصمیم درست باید خود دندان و در صورت نیاز تصویر رادیوگرافی بررسی بشه.',
+  'پوسیدگی همیشه از اول با درد خودش رو نشون نمی‌ده، برای همین تشخیص زودتر می‌تونه ساده‌تر باشه.'
+ ],
+ spot:[
+  'هر تیرگی یا لکه‌ای به‌تنهایی به معنی پوسیدگی فعال نیست؛ رنگ فقط یکی از چیزهاییه که هنگام معاینه بررسی می‌شه.',
+  'از روی سیاه بودن یک نقطه نمی‌شه به‌تنهایی تصمیم به پرکردن گرفت؛ وضعیت سطح دندان و فعالیت ضایعه مهمه.',
+  'لکه ممکنه علت‌های مختلفی داشته باشه و تشخیصش فقط با نگاه به رنگ قابل اتکا نیست.'
+ ],
+ hidden:[
+  'بعضی پوسیدگی‌های بین دندان‌ها با نگاه معمولی واضح نیستن و وقتی لازم باشه عکس می‌تونه به ارزیابی کمک کنه.',
+  'سطوح بین دو دندان همیشه کامل دیده نمی‌شن؛ به همین دلیل معاینه و در موارد لازم رادیوگرافی کنار هم معنا پیدا می‌کنن.',
+  'پوسیدگی پنهان بین دندان‌ها ممکنه دیرتر به چشم بیاد، پس نبودن یک حفره واضح همیشه کافی نیست.'
+ ],
+ filling:[
+  'هر پوسیدگی الزاماً به معنی پرکردن نیست؛ تصمیم درمان به شدت ضایعه، فعال بودنش و شرایط خود دندان بستگی داره.',
+  'هدف ترمیم فقط پر کردن یک سوراخ نیست؛ اول باید معلوم بشه ضایعه در چه وضعیه و چه درمانی واقعاً لازمه.',
+  'برای انتخاب نوع ترمیم، مقدار بافت باقی‌مانده دندان و شرایط بالینی از اسم ماده مهم‌تره.'
+ ],
+ sensitivity:[
+  'بعد از بعضی ترمیم‌ها حساسیت موقت می‌تونه اتفاق بیفته، اما شدت، مدت و نوع درد تعیین می‌کنه که آیا نیاز به بررسی دوباره هست یا نه.',
+  'حساسیت بعد از پرکردن همیشه یک معنی نداره؛ اگر شدید، مداوم یا رو به افزایش باشه باید دندان ارزیابی بشه.',
+  'واکنش به سرد و گرم بعد از ترمیم ممکنه گذرا باشه، ولی قضاوت درباره طبیعی بودنش بدون معاینه درست نیست.'
+ ],
+ old:[
+  'پرکردگی‌های قدیمی هم باید در معاینه دوره‌ای بررسی بشن؛ ظاهر alone برای تشخیص خرابی یا پوسیدگی مجدد کافی نیست.',
+  'شکستگی یا گیر غذایی کنار یک ترمیم قدیمی ارزش بررسی داره، اما معنی‌اش همیشه تعویض کامل ترمیم نیست.',
+  'ترمیم قدیمی ممکنه سال‌ها قابل قبول بمونه؛ تصمیم به تعمیر یا تعویض باید بعد از ارزیابی خود دندان گرفته بشه.'
+ ],
+ deep:[
+  'پوسیدگی عمیق خودبه‌خود مساوی عصب‌کشی نیست؛ وضعیت پالپ، علائم و یافته‌های بالینی تعیین‌کننده‌ان.',
+  'عمق پوسیدگی مهمه، اما تصمیم برای عصب‌کشی فقط از روی عمیق بودن ضایعه گرفته نمی‌شه.',
+  'در پوسیدگی‌های عمیق هدف اینه که وضعیت عصب دندان درست ارزیابی بشه و درمان بیش از نیاز انجام نشه.'
+ ],
+ generic:[
+  'برای بیشتر مشکلات ترمیمی، تصمیم درست از ترکیب شرح حال، معاینه و در صورت نیاز تصویر رادیوگرافی میاد؛ نه فقط از یک علامت.',
+  'در ترمیم دندان، مهم‌تر از اسم درمان اینه که اول وضعیت واقعی دندان مشخص بشه.',
+  'یک علامت به‌تنهایی برای تصمیم درمان کافی نیست و معاینه بالینی تعیین‌کننده است.'
+ ]
+};
+
+const audienceLines={
+ 'بیمار عمومی':['این سؤال خیلی رایجه.','خیلی‌ها دقیقاً همین سؤال رو می‌پرسن.','این یکی از سؤال‌هاییه که توی مطب زیاد می‌شنوم.'],
+ 'فردی که دندان‌درد ندارد':['اگر چون درد نداری خیالت راحته، این نکته مهمه.','خیلی‌ها تا وقتی درد ندارن فکر می‌کنن مشکلی نیست.','نبودن درد خوبه، ولی به‌تنهایی جواب همه‌چیز نیست.'],
+ 'بیمار دارای پرکردگی قدیمی':['اگر چند ساله یک پرکردگی داری، این نکته به دردت می‌خوره.','ترمیم قدیمی لزوماً خراب نیست، ولی باید درست ارزیابی بشه.','اگر پرکردگی قدیمی داری، فقط به ظاهرش اکتفا نکن.'],
+ 'بیمار حساس به هزینه':['بررسی زودتر همیشه به معنی درمان بیشتر نیست؛ گاهی برعکسه.','هدف معاینه این نیست که هر چیزی را پر کنیم؛ هدف انتخاب درمان لازم است.','اگر هزینه برات مهمه، تصمیم به‌موقع می‌تونه جلوی درمان بی‌مورد رو بگیره.'],
+ 'بیمار مضطرب':['قرار نیست هر چیزی که می‌بینیم فوراً تبدیل به درمان بشه.','اول باید بفهمیم دقیقاً چه اتفاقی افتاده؛ بعد درباره درمان تصمیم می‌گیریم.','نگران اسم درمان نباش؛ قدم اول فقط یک ارزیابی درست است.']
+};
+
+function hookFor(topic,type,angle,seed){
+ const q=topic.replace(/[؟?]+$/,'');
+ const common={
+  'باور غلط':[`یک باور رایج اینه که «${q}»؛ ولی داستان همیشه این‌قدر ساده نیست.`,`اگر درباره «${q}» یک جواب قطعی شنیدی، این نکته رو بدون.`,`این تصور که «${q}» همیشه یک جواب ثابت داره، دقیق نیست.`],
+  'سؤال بیمار':[`«${q}؟» جواب کوتاهش اینه: بستگی داره.`,`یکی از سؤال‌های پرتکرار من اینه: «${q}؟»`,`اگر سؤال تو هم اینه که «${q}؟» این توضیح کوتاه رو بشنو.`],
+  'هشدار ملایم':[`برای «${q}» فقط منتظر درد یا علامت واضح نباش.`,`در مورد «${q}» یک اشتباه ساده می‌تونه تصمیم رو عقب بندازه.`,`اگر موضوعت «${q}» هست، یک نکته رو نادیده نگیر.`],
+  'توضیح ساده':[`بذار «${q}» رو خیلی ساده توضیح بدم.`,`برای «${q}» یک توضیح ساده و کاربردی داریم.`,`«${q}» پیچیده به نظر میاد، ولی اصلش ساده‌ست.`]
+ };
+ let a=angle==='خودکار'?({'spot':'باور غلط','caries':'سؤال بیمار','hidden':'هشدار ملایم','deep':'باور غلط','sensitivity':'توضیح ساده','old':'سؤال بیمار','filling':'باور غلط','generic':'سؤال بیمار'}[type]):angle;
+ return pick(common[a]||common['سؤال بیمار'],seed);
+}
+
+function ctaFor(goal,seed){
+ const map={
+  'گرفتن وقت معاینه':['اگر مدتیه معاینه نشدی، یک بررسی ساده می‌تونه وضعیت دندون رو مشخص کنه.','اگر این سؤال درباره دندون خودته، بهتره قبل از تصمیم درمان یک معاینه انجام بشه.','اگر مدت زیادی از چکاپت گذشته، معاینه بهترین قدم بعدیه.'],
+  'آموزش و اعتمادسازی':['پس قبل از تصمیم درمان، اول تشخیص درست مهمه.','خلاصه اینکه یک علامت به‌تنهایی برای انتخاب درمان کافی نیست.','اصل ماجرا اینه: اول وضعیت واقعی دندان، بعد انتخاب درمان.'],
+  'پاسخ به سؤال رایج':['اگر این سؤال برای خودت پیش اومده، جواب دقیقش بعد از معاینه مشخص می‌شه.','پس جواب یک کلمه‌ای نداره؛ باید خود دندان بررسی بشه.','اگر مورد مشابه داری، معاینه مشخص می‌کنه کدوم حالت درباره تو صدق می‌کنه.'],
+  'کاهش ترس':['پس قبل از اینکه ذهنت سراغ بدترین درمان بره، اول اجازه بده دندان بررسی بشه.','اسم درمان رو از قبل حدس نزن؛ قدم اول فقط بررسی دقیق وضعیته.','نگران نتیجه از قبل نباش؛ اول ببینیم دندان واقعاً چه نیازی داره.'],
+  'معرفی ترمیم':['اگر دندان واقعاً نیاز به ترمیم داشته باشه، نوع ترمیم بعد از ارزیابی شرایط دندان انتخاب می‌شه.','ترمیم خوب از تشخیص درست شروع می‌شه، نه فقط انتخاب ماده پرکردنی.','اگر نیاز به ترمیم تأیید بشه، هدف حفظ هرچه بیشتر بافت سالم دندانه.']
+ };
+ return pick(map[goal]||map['گرفتن وقت معاینه'],seed);
+}
+
+function styleSentence(tone,seed){
+ const map={
+  'خودمانی و حرفه‌ای':['نکته مهم اینجاست:','چیزی که مهمه اینه که','اینجا یک نکته مهم داریم:'],
+  'مستقیم و کوتاه':['اصل ماجرا:','جواب عملی:','نکته اصلی:'],
+  'آرام و اطمینان‌بخش':['نگران نباش؛ چیزی که باید بدونی اینه که','قبل از هر نتیجه‌گیری، این نکته رو در نظر بگیر:','با خیال راحت، اول این نکته رو بدون:'],
+  'کنجکاوی‌برانگیز':['جالب اینجاست که','بخش غیرمنتظره ماجرا اینه که','اما نکته‌ای که خیلی‌ها نمی‌دونن اینه که']
+ };
+ return pick(map[tone]||map['خودمانی و حرفه‌ای'],seed);
+}
+
+function buildScenario(inc=0){
+ const topic=normalize($('topic').value); if(!topic){$('error').classList.add('show');$('topic').focus();return null}
+ $('error').classList.remove('show');
+ const audience=$('audience').value,goal=$('goal').value,tone=$('tone').value,duration=$('duration').value,angle=$('angle').value;
+ const type=classify(topic); const seed=hash(topic+audience+goal+tone+duration+angle)+inc*37;
+ const hook=hookFor(topic,type,angle,seed);
+ const audienceLine=pick(audienceLines[audience]||audienceLines['بیمار عمومی'],seed+3);
+ const fact=pick(facts[type],seed+7);
+ const bridge=styleSentence(tone,seed+11);
+ const extra={
+  caries:'برای همین، فقط منتظر درد موندن معیار خوبی برای زمان معاینه نیست.',
+  spot:'پس تصمیم برای پرکردن باید بر اساس معاینه باشه، نه فقط رنگ دندان.',
+  hidden:'به‌خصوص بین دندان‌ها، چیزی که با چشم دیده می‌شه همه اطلاعات ما نیست.',
+  filling:'هدف اینه که فقط جایی درمان بشه که واقعاً به مداخله نیاز داره.',
+  sensitivity:'اگر علامت شدید، طولانی یا رو به بدتر شدن باشه، بررسی دوباره مهم می‌شه.',
+  old:'گاهی تعمیر محدود کافیه و گاهی تعویض لازم می‌شه؛ این تصمیم بعد از معاینه گرفته می‌شه.',
+  deep:'این تفاوت مهمه چون قرار نیست فقط با دیدن یک پوسیدگی عمیق از قبل نتیجه‌گیری کنیم.',
+  generic:'برای همین یک پاسخ عمومی نمی‌تونه جای بررسی خود دندان رو بگیره.'
+ }[type];
+ const cta=ctaFor(goal,seed+17);
+ let parts=[hook,audienceLine,bridge+' '+fact];
+ if(duration!=='20–30 ثانیه') parts.push(extra);
+ if(duration==='45–60 ثانیه') parts.push('وقتی شرح حال، معاینه و در صورت نیاز عکس کنار هم قرار می‌گیرن، می‌شه محافظه‌کارانه‌تر و دقیق‌تر تصمیم گرفت.');
+ parts.push(cta);
+ const text=parts.filter(Boolean).join('\n\n');
+ $('script').textContent=text;
+ $('meta').textContent=`تشخیص محتوایی: ${type==='caries'?'پوسیدگی/بدون درد':type==='spot'?'لکه و تغییر رنگ':type==='hidden'?'پوسیدگی پنهان/بین‌دندانی':type==='filling'?'ترمیم و پرکردگی':type==='sensitivity'?'حساسیت بعد از ترمیم':type==='old'?'پرکردگی قدیمی/شکسته':type==='deep'?'پوسیدگی عمیق/نگرانی عصب': 'ترمیم عمومی'} • مدت: ${duration} • لحن: ${tone}`;
+ $('result').classList.add('show');
+ $('result').scrollIntoView({behavior:'smooth',block:'start'});
+ return text;
+}
+
+document.querySelectorAll('.preset').forEach(b=>b.addEventListener('click',()=>{$('topic').value=b.dataset.topic;$('topic').focus()}));
+$('generate').addEventListener('click',()=>{variantIndex=0;buildScenario(variantIndex)});
+$('variant').addEventListener('click',()=>{variantIndex++;buildScenario(variantIndex)});
+$('copy').addEventListener('click',async()=>{const t=$('script').textContent;if(!t)return;try{await navigator.clipboard.writeText(t);$('copy').textContent='کپی شد';setTimeout(()=>$('copy').textContent='کپی متن',1200)}catch{const r=document.createRange();r.selectNode($('script'));getSelection().removeAllRanges();getSelection().addRange(r)}});
+$('topic').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();variantIndex=0;buildScenario(0)}});
+</script>
+</body>
+</html>
