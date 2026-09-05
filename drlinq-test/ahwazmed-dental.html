@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AhwazMed | بررسی اولیه دندانپزشکی</title>
+<meta name="description" content="فرم کوتاه بررسی اولیه دندانپزشکی عمومی برای بیماران اهواز">
+<style>
+:root{--p:#0b8f72;--pd:#08725c;--soft:#effaf6;--ink:#172127;--mut:#748087;--line:#e3e9e7;--bg:#f4f7f6;--danger:#a4332a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif}
+button,input,textarea{font:inherit}
+.app{width:100%;max-width:520px;min-height:100svh;margin:auto;background:#fff;position:relative}
+.top{position:sticky;top:0;z-index:20;background:#fffffff2;backdrop-filter:blur(14px);padding:16px 17px 12px;border-bottom:1px solid #edf1ef}
+.toprow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font-size:23px;font-weight:950;letter-spacing:-.4px}.brand b{color:var(--p)}
+.step{font-size:12px;font-weight:800;color:#7d878e;white-space:nowrap}
+.progress{height:5px;margin-top:11px;background:#e8eeeb;border-radius:999px;overflow:hidden}.progress i{height:100%;display:block;background:var(--p);border-radius:999px;transition:.2s}
+.wrap{padding:22px 17px 125px}
+.intro{margin-bottom:18px}.intro h1{margin:0 0 7px;font-size:27px;line-height:1.45;font-weight:950}.intro p{margin:0;color:var(--mut);font-size:15px;line-height:1.9}
+.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:12px;box-shadow:0 6px 24px #0a5b4309}
+.choices{display:grid;gap:9px}
+.choice{position:relative;width:100%;min-height:62px;border:1.5px solid #dfe6e3;border-radius:16px;background:#fff;color:#263038;padding:13px 49px 13px 13px;text-align:right;font-size:16px;font-weight:760;line-height:1.55;cursor:pointer}
+.choice:before{content:"";position:absolute;right:15px;top:50%;transform:translateY(-50%);width:20px;height:20px;border:2px solid #b9c3be;border-radius:50%;background:#fff}
+.choice.on{border-color:var(--p);background:var(--soft);color:var(--pd);font-weight:880}.choice.on:before{border-color:var(--p);background:var(--p);box-shadow:inset 0 0 0 4px #fff}
+.label{display:block;margin:18px 2px 9px;font-size:16px;font-weight:900}
+.question{margin-bottom:12px}.question-title{margin:0 2px 8px;font-size:15px;font-weight:850;line-height:1.7}
+.yn{display:grid;grid-template-columns:1fr 1fr;gap:8px}.yn.three{grid-template-columns:repeat(3,1fr)}
+.pill{min-height:50px;border:1.5px solid #dfe6e3;border-radius:14px;background:#fff;color:#4c5853;font-size:14px;font-weight:800;cursor:pointer}.pill.on{border-color:var(--p);background:var(--soft);color:var(--pd)}
+.input,.text{width:100%;border:1.5px solid #d9e1dd;border-radius:15px;background:#fff;color:var(--ink);font-size:16px;padding:14px 15px;outline:0}.text{min-height:96px;resize:vertical}.input:focus,.text:focus{border-color:var(--p);box-shadow:0 0 0 4px #e8f8f2}
+.upload{margin-top:16px;border:1.5px dashed #72bba4;border-radius:17px;background:#f8fcfa;padding:14px;text-align:center}.upload b{display:block;font-size:15px;margin-bottom:4px}.upload p{margin:0 0 10px;color:var(--mut);font-size:12px;line-height:1.7}.upload input{display:none}.uploadbtn{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:13px;background:#fff;border:1px solid #dce6e2;color:var(--pd);font-weight:850;cursor:pointer}.file-status{margin-top:8px;font-size:12px;color:var(--pd);font-weight:800;word-break:break-word}
+.consent{display:flex;gap:9px;align-items:flex-start;margin-top:15px;font-size:13px;line-height:1.8;color:#4d5954}.consent input{width:21px;height:21px;accent-color:var(--p);flex:0 0 auto;margin-top:2px}
+.notice{margin:13px 0 0;border:1px solid #d8e9e3;border-radius:15px;background:#f7fbfa;color:#586b64;padding:11px 12px;font-size:12px;line-height:1.8}
+.alert{margin-top:12px;border:1px solid #f0cbc7;border-radius:15px;background:#fff5f3;color:var(--danger);padding:11px 12px;font-size:12px;line-height:1.8}
+.done{border:1px solid #bfe7d8;border-radius:19px;background:#edf9f5;color:#236b55;padding:17px;font-size:15px;line-height:1.9}.done strong{display:block;font-size:21px;margin-bottom:4px}.case-id{display:inline-block;direction:ltr;margin-top:8px;padding:7px 10px;border-radius:10px;background:#fff;border:1px solid #bfe7d8;font-weight:950}
+.sticky{position:fixed;left:50%;transform:translateX(-50%);bottom:0;z-index:30;width:100%;max-width:520px;padding:24px 17px max(14px,env(safe-area-inset-bottom));display:flex;gap:8px;background:linear-gradient(transparent,#fff 25%)}
+.btn{min-height:57px;border-radius:16px;border:0;padding:12px 16px;font-size:16px;font-weight:900}.primary{flex:1;color:#fff;background:linear-gradient(135deg,var(--p),var(--pd));cursor:pointer}.ghost{min-width:86px;background:#fff;color:#4c5953;border:1px solid #dfe5e2;cursor:pointer}.btn:disabled{opacity:.55;cursor:not-allowed}.hidden{display:none!important}
+.small{font-size:12px;color:var(--mut);line-height:1.8;margin-top:12px}
+@media(max-width:390px){.wrap{padding:18px 14px 122px}.top{padding:14px}.intro h1{font-size:24px}.choice{min-height:59px;font-size:15px}.pill{min-height:47px}}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="top"><div class="toprow"><div class="brand">Ahwaz<b>Med</b></div><div id="step" class="step"></div></div><div class="progress"><i id="bar"></i></div></header>
+<main class="wrap"><div id="root"></div></main>
+<div id="sticky" class="sticky"><button id="back" class="btn ghost hidden">قبلی</button><button id="next" class="btn primary">ادامه</button></div>
+</div>
+<script>
+(()=>{
+'use strict';
+const $=id=>document.getElementById(id),root=$('root'),stepEl=$('step'),bar=$('bar'),next=$('next'),back=$('back'),sticky=$('sticky');
+const API='implant-api';
+const KEY='ahwazmed_dental_v1';
+const complaints=[
+  {id:'pain',label:'درد دندان'},
+  {id:'filling',label:'پوسیدگی / ترمیم'},
+  {id:'crown',label:'دندان شکسته / روکش'},
+  {id:'extract',label:'کشیدن دندان'},
+  {id:'unsure',label:'مطمئن نیستم'}
+];
+const questions={
+  pain:[['severe','درد شدید است؟',['بله','خیر']],['night','شب از خواب بیدارت می‌کند؟',['بله','خیر']],['swelling','تورم داری؟',['بله','خیر']]],
+  filling:[['painNow','درد دارد؟',['بله','خیر']],['broken','دندان شکسته است؟',['بله','خیر']]],
+  crown:[['rct','قبلاً عصب‌کشی شده؟',['بله','خیر','نمی‌دانم']],['painNow','الان درد دارد؟',['بله','خیر']]],
+  extract:[['painSwelling','درد یا تورم دارد؟',['بله','خیر']],['wisdom','دندان عقل است؟',['بله','خیر','نمی‌دانم']]],
+  unsure:[]
+};
+const newId=()=>crypto.randomUUID?crypto.randomUUID():(()=>{const a=crypto.getRandomValues(new Uint8Array(16));a[6]=(a[6]&15)|64;a[8]=(a[8]&63)|128;const h=[...a].map(v=>v.toString(16).padStart(2,'0')).join('');return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`})();
+const fresh=()=>({submissionKey:newId(),complaint:'',answers:{},note:'',name:'',mobile:'',consent:false,caseId:''});
+let s;
+try{s=Object.assign(fresh(),JSON.parse(localStorage.getItem(KEY)||'{}'))}catch{s=fresh()}
+s.answers=s.answers&&typeof s.answers==='object'?s.answers:{};
+if(!s.submissionKey)s.submissionKey=newId();
+let page=s.caseId?3:0,selectedFile=null,submitting=false,error='';
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const save=()=>localStorage.setItem(KEY,JSON.stringify(s));
+const labelFor=id=>(complaints.find(x=>x.id===id)||{}).label||'';
+const answerSummary=()=>{
+  const lines=[];
+  for(const q of questions[s.complaint]||[]){const val=s.answers[q[0]];if(val)lines.push(`${q[1]} ${val}`)}
+  if(s.note.trim())lines.push(`توضیح بیمار: ${s.note.trim()}`);
+  return lines.join('\n');
+};
+function render(){
+  if(page===3||s.caseId){
+    stepEl.textContent='ثبت شد';bar.style.width='100%';back.classList.add('hidden');sticky.classList.add('hidden');
+    root.innerHTML=`<div class="intro"><h1>پرونده ارسال شد</h1><p>اطلاعات برای بررسی اولیه دندانپزشک ثبت شد.</p></div><div class="done"><strong>ثبت با موفقیت انجام شد</strong>شناسه پرونده:<br><span class="case-id">${esc(s.caseId)}</span></div><div class="notice">این بررسی اولیه جایگزین معاینه حضوری و تشخیص نهایی نیست.</div><button id="newCase" class="btn ghost" style="width:100%;margin-top:14px">ثبت پرونده جدید</button>`;
+    $('newCase').onclick=()=>{s=fresh();selectedFile=null;page=0;error='';save();sticky.classList.remove('hidden');render();scrollTo(0,0)};return;
+  }
+  sticky.classList.remove('hidden');stepEl.textContent=`مرحله ${page+1} از 3`;bar.style.width=`${((page+1)/3)*100}%`;back.classList.toggle('hidden',page===0);next.textContent=page===2?(submitting?'در حال ارسال...':'ارسال برای بررسی'):'ادامه';next.disabled=submitting;
+  root.innerHTML=page===0?screenComplaint():page===1?screenQuestions():screenContact();bind();
+}
+function screenComplaint(){return `<div class="intro"><h1>مشکل اصلی دندانت چیست؟</h1><p>فقط نزدیک‌ترین گزینه را انتخاب کن.</p></div><div class="card choices">${complaints.map(x=>`<button type="button" class="choice ${s.complaint===x.id?'on':''}" data-complaint="${x.id}">${x.label}</button>`).join('')}</div><div class="alert">اگر تورم سریع، مشکل بلع/تنفس یا خونریزی کنترل‌نشده داری، منتظر پاسخ آنلاین نمان و برای ارزیابی فوری مراجعه کن.</div>`}
+function screenQuestions(){
+  if(s.complaint==='unsure')return `<div class="intro"><h1>کوتاه توضیح بده</h1><p>در یک یا دو جمله؛ لازم نیست اصطلاح پزشکی بدانی.</p></div><div class="card"><textarea id="note" class="text" maxlength="200" placeholder="مثلاً: دندان پایین سمت راست با سردی درد می‌گیرد...">${esc(s.note)}</textarea>${uploadBox()}</div>`;
+  const qs=questions[s.complaint]||[];
+  return `<div class="intro"><h1>${esc(labelFor(s.complaint))}</h1><p>فقط چند سؤال کوتاه.</p></div><div class="card">${qs.map(q=>`<div class="question"><div class="question-title">${q[1]}</div><div class="yn ${q[2].length===3?'three':''}">${q[2].map(v=>`<button type="button" class="pill ${s.answers[q[0]]===v?'on':''}" data-answer="${q[0]}|${v}">${v}</button>`).join('')}</div></div>`).join('')}${uploadBox()}</div>`
+}
+function uploadBox(){return `<div class="upload"><b>عکس یا رادیوگرافی داری؟</b><p>اختیاری است؛ یک فایل کافی است.</p><label class="uploadbtn" for="attachment">انتخاب فایل</label><input id="attachment" type="file" accept="image/jpeg,image/png,image/webp,application/pdf"><div class="file-status">${selectedFile?esc(selectedFile.name):'بدون فایل هم می‌توانی ادامه بدهی'}</div></div>`}
+function screenContact(){return `<div class="intro"><h1>اطلاعات تماس</h1><p>برای اینکه بتوانیم نتیجه بررسی را پیگیری کنیم.</p></div><div class="card"><label class="label" for="name">نام و نام خانوادگی</label><input id="name" class="input" autocomplete="name" value="${esc(s.name)}"><label class="label" for="mobile">شماره موبایل</label><input id="mobile" class="input" inputmode="tel" autocomplete="tel" placeholder="09xxxxxxxxx" value="${esc(s.mobile)}"><label class="consent"><input id="consent" type="checkbox" ${s.consent?'checked':''}><span>اجازه می‌دهم اطلاعات و فایل ارسالی برای بررسی اولیه در اختیار دندانپزشک قرار گیرد.</span></label>${error?`<div class="alert">${esc(error)}</div>`:''}</div><div class="small">بررسی اولیه به معنی تشخیص قطعی یا طرح درمان نهایی نیست.</div>`}
+function bind(){
+  document.querySelectorAll('[data-complaint]').forEach(b=>b.onclick=()=>{s.complaint=b.dataset.complaint;s.answers={};s.note='';selectedFile=null;save();render()});
+  document.querySelectorAll('[data-answer]').forEach(b=>b.onclick=()=>{const [k,v]=b.dataset.answer.split('|');s.answers[k]=v;save();render()});
+  const note=$('note');if(note)note.oninput=()=>{s.note=note.value;save()};
+  const name=$('name');if(name)name.oninput=()=>{s.name=name.value;save()};
+  const mobile=$('mobile');if(mobile)mobile.oninput=()=>{s.mobile=mobile.value;save()};
+  const consent=$('consent');if(consent)consent.onchange=()=>{s.consent=consent.checked;save()};
+  const attachment=$('attachment');if(attachment)attachment.onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;if(f.size>12*1024*1024){alert('حجم فایل باید حداکثر ۱۲ مگابایت باشد.');e.target.value='';return}const ext=(f.name.split('.').pop()||'').toLowerCase();const ok=['image/jpeg','image/png','image/webp','application/pdf'].includes(f.type)||['jpg','jpeg','png','webp','pdf'].includes(ext);if(!ok){alert('فقط تصویر یا PDF مجاز است.');e.target.value='';return}selectedFile=f;render()};
+}
+function mobileValid(v){const x=String(v).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[\s()+-]/g,'');return /^\d{10,15}$/.test(x)}
+function validPage(){
+  if(page===0&&!s.complaint){alert('لطفاً یک گزینه را انتخاب کن.');return false}
+  if(page===1&&s.complaint==='unsure'&&!s.note.trim()){alert('لطفاً خیلی کوتاه مشکلت را بنویس.');return false}
+  if(page===2&&!s.name.trim()){alert('نام را وارد کن.');return false}
+  if(page===2&&!mobileValid(s.mobile)){alert('شماره موبایل معتبر وارد کن.');return false}
+  if(page===2&&!s.consent){alert('برای ارسال، اجازه بررسی اطلاعات را تأیید کن.');return false}
+  return true;
+}
+async function submit(){
+  if(submitting||s.caseId)return;submitting=true;error='';render();
+  const form=new FormData();
+  const payload={
+    submission_key:s.submissionKey,
+    name:s.name.trim(),
+    mobile:s.mobile.trim(),
+    city:'اهواز',
+    problem:`AHWAZMED|${labelFor(s.complaint)}`,
+    missingCount:'',
+    jaws:['upper'],
+    jawParts:{upper:'نامشخص'},
+    teeth:[],
+    medical:{},
+    diseaseText:'',
+    medText:'',
+    suggestedQuestions:[],
+    question:`AhwazMed General Dentistry V1\n${answerSummary()}`.trim(),
+    records:{opg:selectedFile&&((selectedFile.type==='application/pdf')||/\.pdf$/i.test(selectedFile.name))?`فایل انتخاب شد: ${selectedFile.name}`:'',cbct:''},
+    photos:{front:selectedFile&&!((selectedFile.type==='application/pdf')||/\.pdf$/i.test(selectedFile.name))?`عکس انتخاب شد: ${selectedFile.name}`:'',upper:'',lower:'',right:'',left:''},
+    consent:true
+  };
+  form.append('payload',JSON.stringify(payload));
+  if(selectedFile){const isPdf=selectedFile.type==='application/pdf'||/\.pdf$/i.test(selectedFile.name);form.append(isPdf?'opg':'front',selectedFile,selectedFile.name)}
+  try{
+    const res=await fetch(`${API}/cases`,{method:'POST',body:form,cache:'no-store'});let data={};try{data=await res.json()}catch{}
+    if(!res.ok)throw new Error(data.detail||'ثبت پرونده انجام نشد.');
+    s.caseId=data.case_id||'';save();page=3;
+  }catch(e){error=e&&e.message==='Failed to fetch'?'ارتباط با سرور برقرار نشد. دوباره تلاش کن.':String(e&&e.message||'ثبت پرونده انجام نشد.');}
+  finally{submitting=false;render();scrollTo({top:0,behavior:'smooth'})}
+}
+next.onclick=()=>{if(!validPage())return;if(page<2){page++;render();scrollTo({top:0,behavior:'smooth'})}else submit()};
+back.onclick=()=>{if(page>0&&!submitting){page--;error='';render();scrollTo({top:0,behavior:'smooth'})}};
+render();
+})();
+</script>
+</body>
+</html>
